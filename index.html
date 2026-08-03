@@ -221,9 +221,18 @@ rt.r{color:#c17d16}
     <div class="chips" id="chips"></div>
   </div>
 
+  <div class="card" id="autoCard">
+    <h2>一键生成</h2>
+    <p class="hint">点一下就出故事，不用复制粘贴。密钥藏在服务器端，网页里看不到。</p>
+    <div class="bar" style="margin-top:12px">
+      <button class="act" id="autoGo">一键生成故事</button>
+      <span class="hint" id="autoMsg"></span>
+    </div>
+  </div>
+
   <div class="card">
-    <h2>三步做出绘本</h2>
-    <p class="hint">全程免费，不用注册、不用付费、不用任何密钥。你需要一个能聊天的 AI，<b>Claude、ChatGPT、Gemini、豆包、Kimi、通义、DeepSeek 都可以</b>，用你自己习惯的那个就行。</p>
+    <h2>备用方式 · 手动三步</h2>
+    <p class="hint">一键生成用不了的时候（额度用完、接口抽风），走这条路一样能出故事。你需要一个能聊天的 AI，<b>Claude、ChatGPT、Gemini、豆包、Kimi、通义、DeepSeek 都可以</b>。</p>
 
     <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:16px 0">
       <p style="margin:0 0 6px;font-weight:700"><span class="step">1</span>复制指令</p>
@@ -290,6 +299,7 @@ const grid=$('grid'), n0=$('n0'), n1=$('n1'), n2=$('n2'), np=$('np'),
       vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), lvl=$('lvl'),
       hero=$('hero'), extra=$('extra'), dice=$('dice'), prefmsg=$('prefmsg'),
       chips=$('chips'), fcount=$('fcount'), froll=$('froll'), fclear=$('fclear'),
+      autoGo=$('autoGo'), autoMsg=$('autoMsg'), autoCard=$('autoCard'),
       cpy=$('cpy'), cpymsg=$('cpymsg'), peek=$('peek'), peekbox=$('peekbox'), selall=$('selall'),
       paste=$('paste'), pgo=$('pgo'), gmsg=$('gmsg'), saveinfo=$('saveinfo'),
       report=$('report'), rTotal=$('rTotal'), rNew=$('rNew'), rRatio=$('rRatio'),
@@ -609,6 +619,39 @@ selall.onclick = ()=>{
 peek.onclick = ()=>{
   if(peekbox.style.display==='block'){ peekbox.style.display='none'; return; }
   peekbox.style.display='block'; peekbox.textContent = buildPrompt();
+};
+
+/* ---------- 一键生成 ---------- */
+autoGo.onclick = async ()=>{
+  autoGo.disabled = true;
+  const label = autoGo.textContent;
+  autoGo.textContent = '正在写故事…';
+  autoMsg.textContent = '通常 10–30 秒，请稍等';
+  gmsg.className = 'msg'; gmsg.textContent = '';
+  try{
+    const r = await fetch('/api/story', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({ prompt: buildPrompt() })
+    });
+    if(r.status === 404){
+      throw new Error('这个版本没有开通一键生成（可能是 GitHub Pages 的静态版）。请用下面的手动三步。');
+    }
+    let j = null;
+    try{ j = await r.json(); }catch(e){ /* 非 JSON 响应 */ }
+    if(!r.ok) throw new Error((j && j.error) || ('接口出错（'+r.status+'）'));
+    if(!j || !j.text) throw new Error('AI 没有返回内容，请再试一次。');
+    paste.value = j.text.trim();
+    autoMsg.textContent = '';
+    pgo.click();                       // 复用手动流程的排版 + 成绩单
+  }catch(e){
+    autoMsg.textContent = '';
+    gmsg.className = 'msg err';
+    gmsg.textContent = '出问题了：' + e.message;
+  }finally{
+    autoGo.disabled = false;
+    autoGo.textContent = label;
+  }
 };
 
 /* ---------- 排版 + 成绩单 ---------- */
