@@ -555,14 +555,21 @@ function buildPrompt(){
   p += '- 长度：大约 '+lenIn.value+' 个字（不含标点）\n';
   p += '- 句子长度：'+lvlTxt+'\n';
   if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'\n';
-  p += '\n【必须做到】\n';
+  const budget = Math.max(2, Math.round(Number(lenIn.value) * 0.2));
+  p += '\n【第一硬性要求：用字范围】\n';
+  p += '这是识字练习材料，用字范围比故事好坏更重要。\n';
+  p += '全文（含标题）大约 '+lenIn.value+' 个字，其中**清单外的字最多只能有 '+budget+' 个**（不重复计数，同一个字用两次算一个）。\n';
+  p += '写完请自己数一遍，超了就换个说法重写，直到符合为止。\n';
+  p += '宁可故事简单一点、事情小一点，也不要为了表达丰富而用清单外的字。\n';
+  p += '举例：清单里没有「跑」，就别写「跑出门」，改成写清单里有的动作。\n';
+  p += '\n【其他要求】\n';
   p += '1. 要是一个真正的小故事：有角色、有动作、有一件事发生，最好有个小意外或让孩子笑出来的地方。绝对不要写成词语罗列或机械重复。\n';
-  p += '2. 优先使用「已经认识的字」，目标是全文 80% 以上的字来自那个清单。\n';
-  p += '3. 清单外的字可以用，但要少，且优先选常见简单的字。\n';
-  p += '4. 温暖、正面、有趣，适合 4–7 岁孩子。不要说教。\n';
-  p += '5. 只用简体中文，不要出现拼音、英文或生僻字。\n';
-  p += '\n【输出格式】直接输出故事本身，不要任何解释、不要拼音、不要标注。\n';
-  p += '第一行是标题，然后空一行，接着每个自然段占一行。\n';
+  p += '2. 温暖、正面、有趣，适合 4–7 岁孩子。不要说教。\n';
+  p += '3. 只用简体中文，不要出现拼音、英文或生僻字。\n';
+  p += '\n【输出格式】严格按下面的格式，不要任何解释、不要拼音、不要标注、不要 markdown 符号：\n';
+  p += '第一行：故事标题（2–8 个字，单独一行）\n';
+  p += '第二行：空行\n';
+  p += '之后：每个自然段占一行\n';
   return p;
 }
 /* 复制：file:// 下 navigator.clipboard 会被禁用，所以用老办法兜底 */
@@ -621,32 +628,83 @@ peek.onclick = ()=>{
   peekbox.style.display='block'; peekbox.textContent = buildPrompt();
 };
 
-/* ---------- 一键生成 ---------- */
+/* ---------- 一键生成（带自动重试） ---------- */
+
+/** 算一段文字里「孩子没学过的字」占比 */
+function newRatioOf(text){
+  const hz = [...String(text)].filter(c=>/[一-鿿]/.test(c));
+  if(!hz.length) return 1;
+  const news = hz.filter(c => st[c] !== 1 && st[c] !== 2);
+  return news.length / hz.length;
+}
+/** 清掉 AI 有时会带的 markdown 记号和「标题：」前缀 */
+function tidy(text){
+  return String(text).trim()
+    .replace(/^```[a-z]*\s*/i,'').replace(/```\s*$/,'')
+    .split('\n')
+    .map(l => l.trim().replace(/^#+\s*/,'').replace(/^\*\*(.*)\*\*$/,'$1').replace(/^(标题|题目)[:：]\s*/,''))
+    .join('\n').trim();
+}
+
+const MAX_TRIES = 3;      // 最多重写几次
+const GOOD_RATIO = 0.22;  // 生字占比到这个数以下就收工
+
+async function askAI(prompt){
+  const r = await fetch('/api/story', {
+    method:'POST', headers:{'content-type':'application/json'},
+    body: JSON.stringify({ prompt })
+  });
+  if(r.status === 404){
+    throw new Error('这个版本没有开通一键生成（可能是 GitHub Pages 的静态版）。请用下面的手动三步。');
+  }
+  let j = null;
+  try{ j = await r.json(); }catch(e){ /* 非 JSON 响应 */ }
+  if(!r.ok) throw new Error((j && j.error) || ('接口出错（'+r.status+'）'));
+  if(!j || !j.text) throw new Error('AI 没有返回内容，请再试一次。');
+  return tidy(j.text);
+}
+
 autoGo.onclick = async ()=>{
   autoGo.disabled = true;
   const label = autoGo.textContent;
-  autoGo.textContent = '正在写故事…';
-  autoMsg.textContent = '通常 10–30 秒，请稍等';
   gmsg.className = 'msg'; gmsg.textContent = '';
+
+  let best = null, bestRatio = 1;
   try{
-    const r = await fetch('/api/story', {
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body: JSON.stringify({ prompt: buildPrompt() })
-    });
-    if(r.status === 404){
-      throw new Error('这个版本没有开通一键生成（可能是 GitHub Pages 的静态版）。请用下面的手动三步。');
+    for(let attempt = 1; attempt <= MAX_TRIES; attempt++){
+      autoGo.textContent = attempt === 1 ? '正在写故事…' : ('生字偏多，重写中…（第 '+attempt+' 次）');
+      autoMsg.textContent = attempt === 1
+        ? '通常 10–30 秒，请稍等'
+        : '上一版生字占 '+Math.round(bestRatio*100)+'%，让 AI 再写一版';
+
+      let prompt = buildPrompt();
+      if(attempt > 1){
+        // 把上一次没做到的地方明确告诉它
+        const bad = [...new Set([...best].filter(c=>/[一-鿿]/.test(c) && st[c]!==1 && st[c]!==2))];
+        prompt += '\n\n【重要：上一版不合格，请重写】\n';
+        prompt += '上一版清单外的字太多了，用了这些：'+bad.join('、')+'\n';
+        prompt += '请换一种写法，避开其中大部分字，只保留最必要的几个。故事可以更简单。\n';
+      }
+
+      const text = await askAI(prompt);
+      const ratio = newRatioOf(text);
+      if(ratio < bestRatio){ bestRatio = ratio; best = text; }
+      if(bestRatio <= GOOD_RATIO) break;
     }
-    let j = null;
-    try{ j = await r.json(); }catch(e){ /* 非 JSON 响应 */ }
-    if(!r.ok) throw new Error((j && j.error) || ('接口出错（'+r.status+'）'));
-    if(!j || !j.text) throw new Error('AI 没有返回内容，请再试一次。');
-    paste.value = j.text.trim();
+
+    paste.value = best;
     autoMsg.textContent = '';
     pgo.click();                       // 复用手动流程的排版 + 成绩单
+
+    if(bestRatio > GOOD_RATIO){
+      gmsg.className = 'msg';
+      gmsg.style.cssText = 'display:block;background:#fff6e5;border:1px solid #f0c987;color:#8a5a10';
+      gmsg.textContent = '写好了，但生字还是偏多（'+Math.round(bestRatio*100)+'%）。'
+        + '试了 '+MAX_TRIES+' 次，这是最好的一版。可以再点一次，或把字数调小一点。';
+    }
   }catch(e){
     autoMsg.textContent = '';
-    gmsg.className = 'msg err';
+    gmsg.className = 'msg err'; gmsg.style.cssText = '';
     gmsg.textContent = '出问题了：' + e.message;
   }finally{
     autoGo.disabled = false;
