@@ -64,23 +64,39 @@ module.exports = async (req, res) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  try {
-    const upstream = await fetch(baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 1.0,   // 让每次故事都不一样
-        max_tokens: 2000,
-      }),
-      signal: controller.signal,
-    });
+  // 有些新模型（如 GLM-4.7-Flash）默认会先"思考"再回答，思考过程会吃掉 token 上限，
+  // 导致正文还没写完就被截断，返回空内容。所以默认关掉思考模式。
+  // 万一某个平台不认这个参数，下面会自动去掉它重试一次。
+  const buildBody = (withThinking) => {
+    const b = {
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 1.0,   // 让每次故事都不一样
+      max_tokens: 8000,   // 给足空间，避免被截断
+    };
+    if (withThinking) b.thinking = { type: 'disabled' };
+    return JSON.stringify(b);
+  };
 
-    const data = await upstream.json().catch(() => null);
+  const call = (withThinking) => fetch(baseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: buildBody(withThinking),
+    signal: controller.signal,
+  });
+
+  try {
+    let upstream = await call(true);
+    let data = await upstream.json().catch(() => null);
+
+    // 平台不认识 thinking 参数 → 去掉它再试一次
+    if (!upstream.ok && upstream.status === 400) {
+      upstream = await call(false);
+      data = await upstream.json().catch(() => null);
+    }
 
     if (!upstream.ok) {
       const detail =
@@ -99,14 +115,24 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const text =
-      data &&
-      data.choices &&
-      data.choices[0] &&
-      data.choices[0].message &&
-      data.choices[0].message.content;
+    const msg =
+      (data && data.choices && data.choices[0] && data.choices[0].message) || null;
+    const finish =
+      (data && data.choices && data.choices[0] && data.choices[0].finish_reason) || '';
+    const text = msg && msg.content;
 
     if (!text || !String(text).trim()) {
+      // 思考型模型有时只产出思考过程；或者被 token 上限截断
+      if (msg && msg.reasoning_content) {
+        res.status(502).json({
+          error: '这个模型把额度花在"思考"上，正文没写出来。建议在 Vercel 把 AI_MODEL 换成不带思考的模型（例如 glm-4-flash），或把故事字数调小。',
+        });
+        return;
+      }
+      if (finish === 'length') {
+        res.status(502).json({ error: '内容被长度限制截断了。把故事字数调小一点再试。' });
+        return;
+      }
       res.status(502).json({ error: 'AI 返回了空内容，请再试一次。' });
       return;
     }
