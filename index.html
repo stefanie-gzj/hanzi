@@ -104,6 +104,24 @@ rt.r{color:#c17d16}
 .tag{border-radius:8px;padding:5px 11px;font-size:14px;font-weight:600;border:1px solid}
 .tag.y{background:var(--s-known);border-color:var(--s-known-b);color:#1b6b32}
 .tag.n{background:#ffe9e6;border-color:#f3b5ac;color:#8c2b1b}
+/* 手机 */
+@media (max-width:600px){
+  main{padding:16px 12px 70px}
+  .card{padding:14px}
+  header{padding:11px 14px}
+  h1{font-size:17px}
+  nav button{padding:7px 14px;font-size:13px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px}
+  .ch{font-size:19px}
+  .ch i{font-size:8px}
+  #story{padding:18px 14px}
+  #story p{font-size:22px;line-height:2.5}
+  #story h3{font-size:20px}
+  .stat{min-width:calc(50% - 5px)}
+  .fbig{width:80px;height:80px;font-size:36px}
+  button.act{width:100%;justify-content:center}
+  .bar{gap:10px}
+}
 @media print{
  header,nav,.card,.bar,.no-print{display:none!important}
  body{background:#fff}#story{border:none;padding:0}
@@ -628,6 +646,29 @@ peek.onclick = ()=>{
   peekbox.style.display='block'; peekbox.textContent = buildPrompt();
 };
 
+/* ---------- 网址检查：静态版没有后端，一键生成用不了 ---------- */
+const FULL_SITE = 'https://hanzi-gilt.vercel.app';
+const IS_STATIC = /github\.io$/i.test(location.hostname) || location.protocol === 'file:';
+if(IS_STATIC){
+  autoCard.innerHTML = '';
+  const h = document.createElement('h2');
+  h.textContent = '这个网址不能一键生成';
+  const p = document.createElement('p');
+  p.className = 'hint';
+  p.innerHTML = '你现在打开的是<b>没有后端的旧版本</b>，一键生成用不了（下面的手动三步照常可用）。'
+    + '<br><br>完整版在这里，建议把它存成书签或加到手机主屏幕：';
+  const a = document.createElement('a');
+  a.href = FULL_SITE;
+  a.textContent = FULL_SITE;
+  a.style.cssText = 'display:inline-block;margin-top:12px;background:var(--accent);color:#fff;'
+    + 'padding:12px 20px;border-radius:9px;font-weight:700;text-decoration:none;font-size:16px';
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.style.marginTop = '12px';
+  note.textContent = '注意：两个网址的学习进度是分开存的。到新网址后，用「导入进度」把这边导出的文件传过去就行。';
+  autoCard.appendChild(h); autoCard.appendChild(p); autoCard.appendChild(a); autoCard.appendChild(note);
+}
+
 /* ---------- 一键生成（带自动重试） ---------- */
 
 /** 算一段文字里「孩子没学过的字」占比 */
@@ -654,8 +695,8 @@ async function askAI(prompt){
     method:'POST', headers:{'content-type':'application/json'},
     body: JSON.stringify({ prompt })
   });
-  if(r.status === 404){
-    throw new Error('这个版本没有开通一键生成（可能是 GitHub Pages 的静态版）。请用下面的手动三步。');
+  if(r.status === 404 || r.status === 405 || r.status === 501){
+    throw new Error('这个网址没有一键生成功能。请改用 '+FULL_SITE+' ，或用下面的手动三步。');
   }
   let j = null;
   try{ j = await r.json(); }catch(e){ /* 非 JSON 响应 */ }
