@@ -6,21 +6,39 @@
  * 别人打开就能偷走，拿你的额度刷，账单算你的。
  * 所以密钥只放在这里（服务器端环境变量），浏览器永远看不到。
  *
- * 在 Vercel 的 Settings → Environment Variables 里配置：
- *   AI_API_KEY   （必填）平台控制台里创建的 API Key
- *   AI_MODEL     （必填）模型名，例如 glm-4-flash
- *   AI_BASE_URL  （选填）不填则默认用智谱
+ * 现在支持两家 AI，网页上可以手动切换（见 index.html 里的"这次用哪家 AI"）：
  *
- * 下面这些平台都兼容同一套接口格式，换厂商只改环境变量，不用动代码：
- *   智谱 GLM      https://open.bigmodel.cn/api/paas/v4/chat/completions   模型 glm-4-flash（永久免费）
- *   火山方舟豆包   https://ark.cn-beijing.volces.com/api/v3/chat/completions
- *   硅基流动      https://api.siliconflow.cn/v1/chat/completions
- *   阿里百炼通义   https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
- *   DeepSeek     https://api.deepseek.com/chat/completions
+ *   DeepSeek（默认）：
+ *     DEEPSEEK_API_KEY   （必填，也兼容旧的 AI_API_KEY）
+ *     DEEPSEEK_MODEL     （选填，默认 deepseek-chat，也兼容旧的 AI_MODEL）
+ *     DEEPSEEK_BASE_URL  （选填，默认 https://api.deepseek.com/chat/completions，也兼容旧的 AI_BASE_URL）
+ *
+ *   Google Gemini：
+ *     GEMINI_API_KEY     （必填，去 aistudio.google.com/apikey 免费申请）
+ *     GEMINI_MODEL       （选填，默认 gemini-2.5-flash）
+ *     GEMINI_BASE_URL    （选填，默认走 Gemini 的 OpenAI 兼容接口）
+ *
+ * 这两家的接口格式是兼容的（都是 OpenAI 的 chat/completions 格式），
+ * 所以这份代码不用为每家写一套逻辑，只是"密钥、模型名、网址"这三样按 provider 换一套。
+ * 以后要加第三家，只要它也兼容这套格式，加一段 PROVIDERS 配置就行，不用改下面的逻辑。
  */
 
-const DEFAULT_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const DEFAULT_MODEL = 'glm-4-flash';
+const PROVIDERS = {
+  deepseek: {
+    label: 'DeepSeek',
+    key: () => process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY,
+    model: () => process.env.DEEPSEEK_MODEL || process.env.AI_MODEL || 'deepseek-chat',
+    baseUrl: () => process.env.DEEPSEEK_BASE_URL || process.env.AI_BASE_URL || 'https://api.deepseek.com/chat/completions',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    key: () => process.env.GEMINI_API_KEY,
+    model: () => process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    baseUrl: () => process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  },
+};
+const DEFAULT_PROVIDER = 'deepseek';
+
 const MAX_PROMPT = 20000;   // 防止被人当免费通用 AI 刷额度
 const TIMEOUT_MS = 60000;
 
@@ -35,22 +53,26 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const apiKey  = process.env.AI_API_KEY;
-  const model   = process.env.AI_MODEL || DEFAULT_MODEL;
-  const baseUrl = process.env.AI_BASE_URL || DEFAULT_BASE_URL;
-
-  if (!apiKey) {
-    res.status(500).json({
-      error: '还没配置密钥。请到 Vercel 项目的 Settings → Environment Variables，添加 AI_API_KEY（和 AI_MODEL），保存后重新部署一次。',
-    });
-    return;
-  }
-
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
   const prompt = body && typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  const providerName = (body && typeof body.provider === 'string' && PROVIDERS[body.provider])
+    ? body.provider
+    : DEFAULT_PROVIDER;
+  const provider = PROVIDERS[providerName];
+
+  const apiKey  = provider.key();
+  const model   = provider.model();
+  const baseUrl = provider.baseUrl();
+
+  if (!apiKey) {
+    res.status(500).json({
+      error: `还没配置 ${provider.label} 的密钥。请到 Vercel 项目的 Settings → Environment Variables 添加对应的 API_KEY，保存后重新部署一次。`,
+    });
+    return;
+  }
 
   if (!prompt) {
     res.status(400).json({ error: '没有收到指令内容。' });
@@ -103,13 +125,13 @@ module.exports = async (req, res) => {
         (data && data.error && (data.error.message || data.error.code)) ||
         (data && data.message) ||
         `HTTP ${upstream.status}`;
-      let friendly = `AI 接口报错：${detail}`;
+      let friendly = `[${provider.label}] AI 接口报错：${detail}`;
       if (upstream.status === 401 || upstream.status === 403) {
-        friendly = '密钥无效或没有权限。请检查 Vercel 里的 AI_API_KEY 有没有填对（前后不要有空格），以及这个模型在控制台里是否已开通。';
+        friendly = `[${provider.label}] 密钥无效或没有权限。请检查 Vercel 里对应的 API_KEY 有没有填对（前后不要有空格），以及这个模型是否已开通。`;
       } else if (upstream.status === 404) {
-        friendly = '找不到这个模型或接口地址。请检查 AI_MODEL 和 AI_BASE_URL 是否和你选的平台对得上。';
+        friendly = `[${provider.label}] 找不到这个模型或接口地址。请检查对应的 MODEL 和 BASE_URL 设置。`;
       } else if (upstream.status === 429) {
-        friendly = '请求太频繁，或额度已用完。等一会儿再试，或去控制台看看余额。';
+        friendly = `[${provider.label}] 请求太频繁，或额度/余额已用完。等一会儿再试，或去控制台看看余额。`;
       }
       res.status(502).json({ error: friendly });
       return;
@@ -125,25 +147,25 @@ module.exports = async (req, res) => {
       // 思考型模型有时只产出思考过程；或者被 token 上限截断
       if (msg && msg.reasoning_content) {
         res.status(502).json({
-          error: '这个模型把额度花在"思考"上，正文没写出来。建议在 Vercel 把 AI_MODEL 换成不带思考的模型（例如 glm-4-flash），或把故事字数调小。',
+          error: `[${provider.label}] 这个模型把额度花在"思考"上，正文没写出来。建议换一个不带思考的模型，或把故事字数调小。`,
         });
         return;
       }
       if (finish === 'length') {
-        res.status(502).json({ error: '内容被长度限制截断了。把故事字数调小一点再试。' });
+        res.status(502).json({ error: `[${provider.label}] 内容被长度限制截断了。把故事字数调小一点再试。` });
         return;
       }
-      res.status(502).json({ error: 'AI 返回了空内容，请再试一次。' });
+      res.status(502).json({ error: `[${provider.label}] AI 返回了空内容，请再试一次。` });
       return;
     }
 
-    res.status(200).json({ text: String(text).trim() });
+    res.status(200).json({ text: String(text).trim(), provider: providerName });
   } catch (err) {
     if (err && err.name === 'AbortError') {
-      res.status(504).json({ error: 'AI 响应超时（超过 60 秒）。请再试一次，或把故事字数调小一点。' });
+      res.status(504).json({ error: `[${provider.label}] AI 响应超时（超过 60 秒）。请再试一次，或把故事字数调小一点。` });
       return;
     }
-    res.status(500).json({ error: '中转接口出错：' + (err && err.message ? err.message : '未知错误') });
+    res.status(500).json({ error: `[${provider.label}] 中转接口出错：` + (err && err.message ? err.message : '未知错误') });
   } finally {
     clearTimeout(timer);
   }
