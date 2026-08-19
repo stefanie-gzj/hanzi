@@ -71,7 +71,12 @@ details.manual-fallback .manual-body{margin-top:16px}
 .stat span{font-size:12px;color:var(--muted)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:12px;align-items:center}
 .dot{display:inline-block;width:13px;height:13px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px;
+ max-height:620px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;
+ border:1px solid var(--line);border-radius:10px;padding:8px}
+.grid::-webkit-scrollbar{width:8px}
+.grid::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.grid::-webkit-scrollbar-thumb:hover{background:var(--accent2)}
 .ch{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;
  font-size:21px;cursor:pointer;user-select:none;border:1px solid;position:relative;line-height:1}
 .ch:hover{outline:2px solid var(--accent);z-index:2}
@@ -98,7 +103,9 @@ details.manual-fallback .manual-body{margin-top:16px}
 .fbtns button.p0{background:var(--s-new);border-color:var(--s-new-b)}
 .fbtns button.cur{outline:3px solid var(--accent)}
 /* 重点巩固 */
-.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;max-height:190px;overflow-y:auto;padding-right:2px}
+.chips::-webkit-scrollbar{width:8px}
+.chips::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
 .chip{border:1px solid var(--s-review-b);background:#fff;border-radius:9px;padding:6px 11px;
  cursor:pointer;font-size:19px;font-family:inherit;display:flex;flex-direction:column;
  align-items:center;line-height:1.15;min-width:44px}
@@ -146,7 +153,7 @@ rt.r{color:#c17d16}
   header{padding:11px 14px}
   h1{font-size:17px}
   nav button{padding:7px 14px;font-size:13px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:420px}
   .ch{font-size:19px}
   .ch i{font-size:8px}
   #story{padding:18px 14px}
@@ -231,7 +238,7 @@ rt.r{color:#c17d16}
         <button class="ghost" id="rst">全部清空</button>
       </span>
     </div>
-    <p class="hint" style="margin:0 0 10px">左上角小数字是洪恩 App 里的序号。点一个字，按「待学 → 已会 → 需巩固」循环切换。</p>
+    <p class="hint" style="margin:0 0 10px">左上角小数字是洪恩 App 里的序号。点一个字，按「待学 → 已会 → 需巩固」循环切换。字库比较长，下面这个框可以上下滚动。</p>
     <div class="grid" id="grid"></div>
   </div>
 
@@ -281,17 +288,16 @@ rt.r{color:#c17d16}
     <p class="hint">从「需要巩固」里挑几个字（建议 3–5 个）。我会请 AI 自然地多用它们，<b>但不硬塞</b>——句子通顺永远优先。排版后会告诉你每个字实际出现了几次。</p>
     <div class="bar" style="margin-top:0">
       <span class="hint" id="fcount"></span>
-      <button class="ghost" id="froll" style="margin-left:auto">换一批</button>
-      <button class="ghost" id="fclear">全不选</button>
+      <button class="ghost" id="fclear" style="margin-left:auto">全不选</button>
     </div>
     <div class="chips" id="chips"></div>
   </div>
 
   <div class="card" id="autoCard">
     <h2>一键生成</h2>
-    <p class="hint">点一下就出故事，不用复制粘贴。密钥藏在服务器端，网页里看不到。</p>
+    <p class="hint">点一下就出故事。</p>
     <div style="margin:14px 0 4px">
-      <label style="margin-bottom:8px">这次用哪家 AI</label>
+      <label style="margin-bottom:8px">推荐 DeepSeek</label>
       <div class="seg" id="providerSeg" data-v="deepseek">
         <button type="button" data-v="deepseek" class="on">DeepSeek</button>
         <button type="button" data-v="gemini">Google Gemini</button>
@@ -312,13 +318,12 @@ rt.r{color:#c17d16}
 
         <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:16px 0">
           <p style="margin:0 0 6px;font-weight:700"><span class="step">1</span>复制指令</p>
-          <p class="hint" style="margin:0">点下面的蓝色按钮。这会把「孩子会哪些字、这次想读什么、要练哪几个字」自动整理成一段话，放进你的剪贴板。你不用自己写。</p>
+          <p class="hint" style="margin:0">点下面的按钮。这会把「孩子会哪些字、这次想读什么、要练哪几个字」自动整理成一段话，放进你的剪贴板。你不用自己写。</p>
         </div>
         <div class="bar" style="margin-top:0">
           <button class="act blue" id="cpy">复制指令</button>
           <span class="hint" id="cpymsg">点了就复制好了</span>
           <button class="ghost" id="selall">复制不成功？点这里全选</button>
-          <button class="ghost" id="peek">看看指令写了什么</button>
         </div>
         <pre id="peekbox" style="display:none;white-space:pre-wrap;background:#f7f4ef;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:12px;line-height:1.6;max-height:240px;overflow:auto;margin-top:10px;font-family:inherit"></pre>
 
@@ -393,9 +398,9 @@ const grid=$('grid'), n0=$('n0'), n1=$('n1'), n2=$('n2'), np=$('np'),
       expBtn=$('exp'), impb=$('impb'), imp=$('imp'), rst=$('rst'),
       vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), lvl=$('lvl'),
       hero=$('hero'), extra=$('extra'), dice=$('dice'), prefmsg=$('prefmsg'),
-      chips=$('chips'), fcount=$('fcount'), froll=$('froll'), fclear=$('fclear'),
+      chips=$('chips'), fcount=$('fcount'), fclear=$('fclear'),
       autoGo=$('autoGo'), autoMsg=$('autoMsg'), autoCard=$('autoCard'), providerSeg=$('providerSeg'),
-      cpy=$('cpy'), cpymsg=$('cpymsg'), peek=$('peek'), peekbox=$('peekbox'), selall=$('selall'),
+      cpy=$('cpy'), cpymsg=$('cpymsg'), peekbox=$('peekbox'), selall=$('selall'),
       paste=$('paste'), pgo=$('pgo'), gmsg=$('gmsg'), saveinfo=$('saveinfo'),
       report=$('report'), rTotal=$('rTotal'), rNew=$('rNew'), rRatio=$('rRatio'),
       rHit=$('rHit'), rDetail=$('rDetail'), pyRev=$('pyRev'), prt=$('prt'),
@@ -405,7 +410,6 @@ const grid=$('grid'), n0=$('n0'), n1=$('n1'), n2=$('n2'), np=$('np'),
 
 let st = {};        // 汉字 -> 0待学 1已会 2需巩固
 let focusSel = [];  // 本次重点字
-let rollFrom = 0;   // 换一批的起点
 let prefs = {};     // 记住上次的字数 / 句子长短 / 主角
 
 /* 随机主题：贴近幼儿日常，尽量用常见字 */
@@ -623,11 +627,7 @@ function buildChips(){
     chips.appendChild(p);
     return;
   }
-  if(rollFrom >= all.length) rollFrom = 0;
-  const show = [];
-  for(let k=0;k<Math.min(12,all.length);k++) show.push(all[(rollFrom+k)%all.length]);
-  focusSel.forEach(c=>{ if(!show.includes(c)) show.unshift(c); });
-  show.forEach(c=>{
+  all.forEach(c=>{
     const b = document.createElement('button');
     b.className = 'chip' + (focusSel.includes(c)?' on':'');
     b.dataset.c = c;
@@ -643,7 +643,6 @@ function buildChips(){
   });
   fcount.textContent = '已选 '+focusSel.length+'/5　（共 '+all.length+' 个字需要巩固）';
 }
-froll.onclick = ()=>{ rollFrom += 12; buildChips(); };
 fclear.onclick = ()=>{ focusSel = []; buildChips(); };
 
 /* ---------- 指令 ---------- */
@@ -733,11 +732,6 @@ selall.onclick = ()=>{
   selectAll(peekbox);
   cpymsg.textContent = '已全部选中，按 ⌘C 复制（Windows 是 Ctrl+C）';
 };
-peek.onclick = ()=>{
-  if(peekbox.style.display==='block'){ peekbox.style.display='none'; return; }
-  peekbox.style.display='block'; peekbox.textContent = buildPrompt();
-};
-
 /* ---------- 网址检查：静态版没有后端，一键生成用不了 ---------- */
 const FULL_SITE = 'https://hanzi-gilt.vercel.app';
 const IS_STATIC = /github\.io$/i.test(location.hostname) || location.protocol === 'file:';
