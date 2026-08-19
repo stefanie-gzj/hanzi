@@ -57,6 +57,14 @@ button:disabled{opacity:.55;cursor:default}
 .seg button{border:none;background:transparent;padding:9px 18px;border-radius:9px;font-weight:700;
  font-size:13.5px;cursor:pointer;font-family:inherit;color:var(--muted)}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+/* 折叠的"备用方式"区块 */
+details.manual-fallback summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
+ font-size:13.5px;font-weight:700;color:var(--muted);padding:2px 0;user-select:none}
+details.manual-fallback summary::-webkit-details-marker{display:none}
+details.manual-fallback summary .arrow{display:inline-block;font-size:11px;transition:transform .15s;color:var(--accent2)}
+details.manual-fallback[open] summary .arrow{transform:rotate(90deg)}
+details.manual-fallback summary:hover{color:var(--accent2)}
+details.manual-fallback .manual-body{margin-top:16px}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .stat{flex:1;min-width:108px;border-radius:12px;padding:12px 14px;background:var(--accent2-l)}
 .stat b{display:block;font-size:24px;color:var(--accent2);font-weight:800}
@@ -296,33 +304,38 @@ rt.r{color:#c17d16}
   </div>
 
   <div class="card">
-    <h2>备用方式 · 手动三步</h2>
-    <p class="hint">一键生成用不了的时候（额度用完、接口抽风），走这条路一样能出故事。你需要一个能聊天的 AI，<b>Claude、ChatGPT、Gemini、豆包、Kimi、通义、DeepSeek 都可以</b>。</p>
+    <details class="manual-fallback">
+      <summary><span class="arrow">▶</span> 手动备用方法（DeepSeek / Gemini 一键生成用不了时，点这里展开）</summary>
+      <div class="manual-body">
+        <h2>备用方式 · 手动三步</h2>
+        <p class="hint">一键生成用不了的时候（额度用完、接口抽风），走这条路一样能出故事。你需要一个能聊天的 AI，<b>Claude、ChatGPT、Gemini、豆包、Kimi、通义、DeepSeek 都可以</b>。</p>
 
-    <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:16px 0">
-      <p style="margin:0 0 6px;font-weight:700"><span class="step">1</span>复制指令</p>
-      <p class="hint" style="margin:0">点下面的蓝色按钮。这会把「孩子会哪些字、这次想读什么、要练哪几个字」自动整理成一段话，放进你的剪贴板。你不用自己写。</p>
-    </div>
-    <div class="bar" style="margin-top:0">
-      <button class="act blue" id="cpy">复制指令</button>
-      <span class="hint" id="cpymsg">点了就复制好了</span>
-      <button class="ghost" id="selall">复制不成功？点这里全选</button>
-      <button class="ghost" id="peek">看看指令写了什么</button>
-    </div>
-    <pre id="peekbox" style="display:none;white-space:pre-wrap;background:#f7f4ef;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:12px;line-height:1.6;max-height:240px;overflow:auto;margin-top:10px;font-family:inherit"></pre>
+        <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:16px 0">
+          <p style="margin:0 0 6px;font-weight:700"><span class="step">1</span>复制指令</p>
+          <p class="hint" style="margin:0">点下面的蓝色按钮。这会把「孩子会哪些字、这次想读什么、要练哪几个字」自动整理成一段话，放进你的剪贴板。你不用自己写。</p>
+        </div>
+        <div class="bar" style="margin-top:0">
+          <button class="act blue" id="cpy">复制指令</button>
+          <span class="hint" id="cpymsg">点了就复制好了</span>
+          <button class="ghost" id="selall">复制不成功？点这里全选</button>
+          <button class="ghost" id="peek">看看指令写了什么</button>
+        </div>
+        <pre id="peekbox" style="display:none;white-space:pre-wrap;background:#f7f4ef;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:12px;line-height:1.6;max-height:240px;overflow:auto;margin-top:10px;font-family:inherit"></pre>
 
-    <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:20px 0 10px">
-      <p style="margin:0 0 6px;font-weight:700"><span class="step">2</span>发给 AI，把回复贴回来</p>
-      <p class="hint" style="margin:0">打开任意一个 AI 的聊天窗口，按 <b>⌘V</b>（Windows 是 Ctrl+V）粘贴，发送。等它写完，把整篇故事复制下来，贴进下面的框。<br>标题放第一行，每个自然段占一行——AI 一般就是这么输出的，直接整段贴进来即可。</p>
-    </div>
-    <textarea id="paste" style="min-height:120px" placeholder="在这里粘贴 AI 写好的故事…"></textarea>
+        <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:20px 0 10px">
+          <p style="margin:0 0 6px;font-weight:700"><span class="step">2</span>发给 AI，把回复贴回来</p>
+          <p class="hint" style="margin:0">打开任意一个 AI 的聊天窗口，按 <b>⌘V</b>（Windows 是 Ctrl+V）粘贴，发送。等它写完，把整篇故事复制下来，贴进下面的框。<br>标题放第一行，每个自然段占一行——AI 一般就是这么输出的，直接整段贴进来即可。</p>
+        </div>
+        <textarea id="paste" style="min-height:120px" placeholder="在这里粘贴 AI 写好的故事…"></textarea>
 
-    <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:20px 0 10px">
-      <p style="margin:0 0 6px;font-weight:700"><span class="step">3</span>排版并注音</p>
-      <p class="hint" style="margin:0">点下面的按钮。网页会自动上色、加拼音，并给出这一篇的成绩单。</p>
-    </div>
-    <div class="bar" style="margin-top:0"><button class="act blue" id="pgo">排版并注音</button></div>
-    <div class="msg" id="gmsg"></div>
+        <div style="border-left:3px solid var(--accent2);padding:2px 0 2px 14px;margin:20px 0 10px">
+          <p style="margin:0 0 6px;font-weight:700"><span class="step">3</span>排版并注音</p>
+          <p class="hint" style="margin:0">点下面的按钮。网页会自动上色、加拼音，并给出这一篇的成绩单。</p>
+        </div>
+        <div class="bar" style="margin-top:0"><button class="act blue" id="pgo">排版并注音</button></div>
+        <div class="msg" id="gmsg"></div>
+      </div>
+    </details>
   </div>
 
   <div class="card" id="report">
