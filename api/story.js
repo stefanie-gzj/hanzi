@@ -15,7 +15,8 @@
  *
  *   Google Gemini：
  *     GEMINI_API_KEY     （必填，去 aistudio.google.com/apikey 免费申请）
- *     GEMINI_MODEL       （选填，默认 gemini-2.5-flash）
+ *     GEMINI_MODEL       （选填，默认 gemini-flash-latest，即 Google 当前最新的免费 flash 模型，
+ *                          用这个别名可以避免以后模型改名/下线导致又要来改这里）
  *     GEMINI_BASE_URL    （选填，默认走 Gemini 的 OpenAI 兼容接口）
  *
  * 这两家的接口格式是兼容的（都是 OpenAI 的 chat/completions 格式），
@@ -33,7 +34,7 @@ const PROVIDERS = {
   gemini: {
     label: 'Google Gemini',
     key: () => process.env.GEMINI_API_KEY,
-    model: () => process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    model: () => process.env.GEMINI_MODEL || 'gemini-flash-latest',
     baseUrl: () => process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
   },
 };
