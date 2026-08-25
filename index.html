@@ -261,7 +261,7 @@ rt.r{color:#c17d16}
     <h2>这次想读什么？</h2>
     <p class="hint" id="vocabinfo"></p>
     <div class="row">
-      <div style="flex:2"><label>故事主题</label>
+      <div style="flex:2"><label>主题</label>
         <div style="display:flex;gap:7px">
           <input type="text" id="topic" placeholder="例如：小兔子第一天去上学">
           <button class="ghost" id="dice" style="white-space:nowrap;font-size:15px">🎲 随机</button>
@@ -270,12 +270,13 @@ rt.r{color:#c17d16}
         <option>20</option><option>50</option><option selected>100</option>
         <option>150</option><option>200</option><option>300</option><option>500</option>
       </select></div>
-      <div><label>句子长短</label><select id="lvl">
-        <option value="easy">很短（像儿歌）</option>
-        <option value="mid" selected>适中</option>
-        <option value="hard">长一点</option>
+      <div><label>做成什么</label><select id="mode">
+        <option value="story" selected>小故事（有情节）</option>
+        <option value="phrase">组词（练认字）</option>
+        <option value="sentence">组句子（简单短句）</option>
       </select></div>
     </div>
+    <p class="hint" id="modehint" style="margin:8px 0 0"></p>
     <p class="hint" id="prefmsg" style="margin:10px 0 0"></p>
     <div style="margin-top:12px"><label>主角叫什么？（可留空）</label>
       <input type="text" id="hero" placeholder="例如：乐乐 / 小兔子"></div>
@@ -396,7 +397,7 @@ const grid=$('grid'), n0=$('n0'), n1=$('n1'), n2=$('n2'), np=$('np'),
       q=$('q'), found=$('found'), qmore=$('qmore'),
       bf=$('bf'), bt=$('bt'), bs=$('bs'), bgo=$('bgo'),
       expBtn=$('exp'), impb=$('impb'), imp=$('imp'), rst=$('rst'),
-      vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), lvl=$('lvl'),
+      vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), mode=$('mode'), modehint=$('modehint'),
       hero=$('hero'), extra=$('extra'), dice=$('dice'), prefmsg=$('prefmsg'),
       chips=$('chips'), fcount=$('fcount'), fclear=$('fclear'),
       autoGo=$('autoGo'), autoMsg=$('autoMsg'), autoCard=$('autoCard'), providerSeg=$('providerSeg'),
@@ -440,20 +441,34 @@ function save(){
 }
 /* 记住上次的设置 */
 function savePrefs(){
-  prefs = { len: lenIn.value, lvl: lvl.value, hero: hero.value.trim(), provider: providerSeg ? providerSeg.dataset.v : 'deepseek' };
+  prefs = { len: lenIn.value, mode: mode.value, hero: hero.value.trim(), provider: providerSeg ? providerSeg.dataset.v : 'deepseek' };
   save();
-  prefmsg.textContent = '✓ 字数、句子长短和主角已记住，下次打开还是这样。';
+  prefmsg.textContent = '✓ 字数、做成什么和主角已记住，下次打开还是这样。';
   setTimeout(()=>{ prefmsg.textContent = defaultPrefMsg(); }, 4000);
 }
 function defaultPrefMsg(){
-  return '字数、句子长短、主角名会自动记住，下次不用重选。主题每次可以换，点 🎲 随机来一个。';
+  return '字数、做成什么、主角名会自动记住，下次不用重选。主题每次可以换，点 🎲 随机来一个。';
 }
 function applyPrefs(){
   if(prefs.len && [...lenIn.options].some(o=>o.value===prefs.len)) lenIn.value = prefs.len;
-  if(prefs.lvl && [...lvl.options].some(o=>o.value===prefs.lvl)) lvl.value = prefs.lvl;
+  if(prefs.mode && [...mode.options].some(o=>o.value===prefs.mode)) mode.value = prefs.mode;
   if(prefs.hero) hero.value = prefs.hero;
   if(prefs.provider && providerSeg) setProvider(prefs.provider);
   prefmsg.textContent = defaultPrefMsg();
+  updateModeHint();
+}
+function updateModeHint(){
+  const known = CHARS.filter(c=> st[c]===1 || st[c]===2).length;
+  const m = mode.value;
+  if(m==='story'){
+    modehint.textContent = known < 30
+      ? '认识的字还比较少（'+known+' 个），编一个完整故事会比较吃力，可以先试试"组词"或"组句子"。'
+      : '会写一个有主角、有一件小事发生的故事。';
+  }else if(m==='phrase'){
+    modehint.textContent = '只用孩子已经认识的字，组成一个个 2～3 字的词语，适合刚开始识字、字还不多的时候。';
+  }else{
+    modehint.textContent = '写几句简单的短句，每句独立，不强求连成一个故事，也会尽量只用孩子认识的字。';
+  }
 }
 /* ---------- 选 DeepSeek 还是 Gemini ---------- */
 function setProvider(v){
@@ -500,6 +515,7 @@ function stats(){
   n1.textContent=a; n2.textContent=b; n0.textContent=z;
   np.textContent = Math.round((a+b)/CHARS.length*100)+'%';
   vocabinfo.textContent = '孩子目前：已会 '+a+' 字，需巩固 '+b+' 字，待学 '+z+' 字。';
+  updateModeHint();
 }
 
 /* ---------- 搜索 ---------- */
@@ -647,10 +663,14 @@ fclear.onclick = ()=>{ focusSel = []; buildChips(); };
 
 /* ---------- 指令 ---------- */
 function buildPrompt(){
+  const m = mode.value;
+  if(m==='phrase') return buildPhrasePrompt();
+  if(m==='sentence') return buildSentencePrompt();
+  return buildStoryPrompt();
+}
+
+function buildStoryPrompt(){
   const heroName = hero.value.trim();
-  const lvlTxt = {easy:'每句 5–8 个字，非常短，像儿歌',
-                  mid:'每句 8–14 个字',
-                  hard:'每句 14–22 个字'}[lvl.value];
 
   let p = '你是一位很会给幼儿讲故事的儿童绘本作者，现在要写一个中文小故事，讲给一个正在学认字的孩子听。\n\n';
 
@@ -677,7 +697,7 @@ function buildPrompt(){
   if(heroName) p += '- 主角叫：'+heroName+'（全文都要用这个名字，不要换成"你/我"）\n';
   if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'（如果这里提到了具体的人名，也要当成贯穿全文、反复出现的角色名字来写，不要漏掉或换成"你/我"这种泛称）\n';
   p += '- 篇幅：大约 '+lenIn.value+' 个字（不含标点）\n';
-  p += '- 句子长度：'+lvlTxt+'\n\n';
+  p += '- 句子长短不限，怎么读起来自然就怎么写。\n\n';
 
   const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
   const budget = Math.max(2, Math.round(Number(lenIn.value) * 0.2));
@@ -694,6 +714,68 @@ function buildPrompt(){
   p += '第一行：故事标题（2–8 个字，单独一行）\n';
   p += '第二行：空行\n';
   p += '之后：每个自然段占一行\n';
+  return p;
+}
+
+function buildPhrasePrompt(){
+  const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
+  const wordCount = Math.max(6, Math.min(40, Math.round(Number(lenIn.value) / 2.5)));
+
+  let p = '你是一位幼儿识字教材编写者，现在要给一个刚开始认字的孩子准备"组词"练习卡片，不是故事，不需要主角和情节。\n\n';
+
+  p += '【任务】只用孩子已经认识的字，组成一个个孩子没见过、但读得出来的常见词语（2～3 个字为主），帮孩子看到这些字在不同词语里的样子。\n\n';
+
+  p += '【孩子已经认识的字】（共 '+known.length+' 个，只能用这里面的字）：\n'+known.join('')+'\n\n';
+
+  p += '【硬性要求：一个清单外的字都不能有】\n';
+  p += '每一个词语里的每一个字，都必须来自上面这份清单，不允许出现清单外的字——哪怕只是常见字也不行。如果想用的词语里有清单外的字，换一个词。\n';
+  p += '写完请自己逐字检查一遍清单外有没有漏网的字，有就换掉。\n\n';
+
+  if(focusSel.length){
+    p += '【这次希望多练的字】：'+focusSel.join('、')+'\n';
+    p += '请优先给这几个字各组 1～2 个词，让孩子在不同词语里多见到它们。\n\n';
+  }
+
+  p += '【主题】'+(topic.value.trim()? '尽量挑和「'+topic.value.trim()+'」相关的词语；如果清单里的字实在凑不出贴近主题的词，就换成孩子日常生活里常见的词语，不用勉强贴合主题。' : '不限主题，挑孩子日常生活里常见、实用的词语就好。')+'\n';
+  if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'（在不违反"只能用清单里的字"这条硬性要求的前提下尽量满足）\n';
+  p += '\n【数量】大约组 '+wordCount+' 个词语，不用刚好，八九不离十就行。\n\n';
+
+  p += '【输出格式】严格按下面的格式，不要任何解释、不要拼音、不要编号、不要 markdown 符号：\n';
+  p += '第一行：一个简短的小标题（2–8 个字，比如"认字小卡片"或跟主题相关的说法）\n';
+  p += '第二行：空行\n';
+  p += '之后每行 4～6 个词语，词语之间用"、"隔开\n';
+  return p;
+}
+
+function buildSentencePrompt(){
+  const heroName = hero.value.trim();
+  const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
+  const budget = Math.max(1, Math.round(Number(lenIn.value) * 0.08));
+  const sentCount = Math.max(4, Math.min(15, Math.round(Number(lenIn.value) / 8)));
+
+  let p = '你是一位幼儿识字教材编写者，现在要给一个正在学认字的孩子写几句"练句子"，帮孩子练习读连起来的句子，但不要求是一个完整故事。\n\n';
+
+  p += '【任务】写'+sentCount+'句左右简单、独立的短句。每句可以各自描述一件小事、一个动作或一个小场景，句子之间不需要有情节上的连续性，但每句读起来要自然、有画面感，不要写成"XX是XX"这种干巴巴的定义句，也不要写成"A做了X，B也做了X"这种反复排比。\n\n';
+
+  if(heroName) p += '【主角】可以（但不必每句都）用「'+heroName+'」做句子里的人物，读起来更亲切。\n\n';
+
+  p += '【主题】'+(topic.value.trim()? '尽量跟「'+topic.value.trim()+'」有关系。' : '不限，贴近幼儿日常生活就好。')+'\n';
+  if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'\n';
+  p += '\n';
+
+  if(focusSel.length){
+    p += '【这次希望多练的字】：'+focusSel.join('、')+'\n';
+    p += '请让这几个字分别出现在不同的句子里。\n\n';
+  }
+
+  p += '【孩子已经认识的字】（共 '+known.length+' 个，请尽量只用这些字）：\n'+known.join('')+'\n';
+  p += '全部句子加起来，其中**清单外的字最多只能有 '+budget+' 个**（不重复计数，同一个字用两次算一个）。写完请自己检查一遍，超了就换个说法。\n\n';
+
+  p += '只用简体中文，不要出现拼音、英文或生僻字。\n';
+  p += '\n【输出格式】严格按下面的格式，不要任何解释、不要拼音、不要编号、不要 markdown 符号：\n';
+  p += '第一行：一个简短的小标题（2–8 个字）\n';
+  p += '第二行：空行\n';
+  p += '之后：每句话单独占一行\n';
   return p;
 }
 /* 复制：file:// 下 navigator.clipboard 会被禁用，所以用老办法兜底 */
@@ -789,7 +871,8 @@ function tidy(text){
 }
 
 const MAX_TRIES = 3;      // 最多重写几次
-const GOOD_RATIO = 0.22;  // 生字占比到这个数以下就收工
+/* 生字占比到这个数以下就收工——"组词"要求几乎不能有生字，"组句子"次之，"小故事"最宽松 */
+function goodRatioFor(m){ return m==='phrase' ? 0 : m==='sentence' ? 0.08 : 0.22; }
 
 async function askAI(prompt){
   const provider = providerSeg ? providerSeg.dataset.v : 'deepseek';
@@ -826,20 +909,20 @@ autoGo.onclick = async ()=>{
         const bad = [...new Set([...best].filter(c=>/[一-鿿]/.test(c) && st[c]!==1 && st[c]!==2))];
         prompt += '\n\n【重要：上一版不合格，请重写】\n';
         prompt += '上一版清单外的字太多了，用了这些：'+bad.join('、')+'\n';
-        prompt += '请换一种写法，避开其中大部分字，只保留最必要的几个。故事可以更简单。\n';
+        prompt += '请换一种写法，避开其中大部分字，只保留最必要的几个。内容可以更简单。\n';
       }
 
       const text = await askAI(prompt);
       const ratio = newRatioOf(text);
       if(ratio < bestRatio){ bestRatio = ratio; best = text; }
-      if(bestRatio <= GOOD_RATIO) break;
+      if(bestRatio <= goodRatioFor(mode.value)) break;
     }
 
     paste.value = best;
     autoMsg.textContent = '';
     pgo.click();                       // 复用手动流程的排版 + 成绩单
 
-    if(bestRatio > GOOD_RATIO){
+    if(bestRatio > goodRatioFor(mode.value)){
       gmsg.className = 'msg';
       gmsg.style.cssText = 'display:block;background:#fff6e5;border:1px solid #f0c987;color:#8a5a10';
       gmsg.textContent = '写好了，但生字还是偏多（'+Math.round(bestRatio*100)+'%）。'
@@ -1055,7 +1138,7 @@ dice.onclick = ()=>{
 
 /* ---------- 记住设置 ---------- */
 lenIn.onchange = savePrefs;
-lvl.onchange = savePrefs;
+mode.onchange = ()=>{ savePrefs(); updateModeHint(); };
 hero.onchange = savePrefs;
 hero.onblur = savePrefs;
 
