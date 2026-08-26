@@ -266,7 +266,7 @@ rt.r{color:#c17d16}
           <input type="text" id="topic" placeholder="例如：小兔子第一天去上学">
           <button class="ghost" id="dice" style="white-space:nowrap;font-size:15px">🎲 随机</button>
         </div></div>
-      <div><label>大约多少字</label><select id="len">
+      <div id="lenRow"><label>大约多少字</label><select id="len">
         <option>20</option><option>50</option><option selected>100</option>
         <option>150</option><option>200</option><option>300</option><option>500</option>
       </select></div>
@@ -397,7 +397,7 @@ const grid=$('grid'), n0=$('n0'), n1=$('n1'), n2=$('n2'), np=$('np'),
       q=$('q'), found=$('found'), qmore=$('qmore'),
       bf=$('bf'), bt=$('bt'), bs=$('bs'), bgo=$('bgo'),
       expBtn=$('exp'), impb=$('impb'), imp=$('imp'), rst=$('rst'),
-      vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), mode=$('mode'), modehint=$('modehint'),
+      vocabinfo=$('vocabinfo'), topic=$('topic'), lenIn=$('len'), lenRow=$('lenRow'), mode=$('mode'), modehint=$('modehint'),
       hero=$('hero'), extra=$('extra'), dice=$('dice'), prefmsg=$('prefmsg'),
       chips=$('chips'), fcount=$('fcount'), fclear=$('fclear'),
       autoGo=$('autoGo'), autoMsg=$('autoMsg'), autoCard=$('autoCard'), providerSeg=$('providerSeg'),
@@ -465,10 +465,12 @@ function updateModeHint(){
       ? '认识的字还比较少（'+known+' 个），编一个完整故事会比较吃力，可以先试试"组词"或"组句子"。'
       : '会写一个有主角、有一件小事发生的故事。';
   }else if(m==='phrase'){
-    modehint.textContent = '只用孩子已经认识的字，组成一个个 2～3 字的词语，适合刚开始识字、字还不多的时候。';
+    modehint.textContent = '只用孩子已经认识的字，固定组 8 个词语，适合刚开始识字、字还不多的时候。';
   }else{
-    modehint.textContent = '写几句简单的短句，每句独立，不强求连成一个故事，也会尽量只用孩子认识的字。';
+    modehint.textContent = '固定写 3 句简单的短句，每句独立，不强求连成一个故事，也会尽量只用孩子认识的字。';
   }
+  // "组词"/"组句子"数量是固定的（8 个词 / 3 句），跟"大约多少字"无关，这两种模式下把这个选项藏起来
+  if(lenRow) lenRow.style.display = (m==='story') ? '' : 'none';
 }
 /* ---------- 选 DeepSeek 还是 Gemini ---------- */
 function setProvider(v){
