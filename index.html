@@ -719,63 +719,65 @@ function buildStoryPrompt(){
 
 function buildPhrasePrompt(){
   const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
-  const wordCount = Math.max(6, Math.min(40, Math.round(Number(lenIn.value) / 2.5)));
+  const wordCount = 8;
 
   let p = '你是一位幼儿识字教材编写者，现在要给一个刚开始认字的孩子准备"组词"练习卡片，不是故事，不需要主角和情节。\n\n';
 
-  p += '【任务】只用孩子已经认识的字，组成一个个孩子没见过、但读得出来的常见词语（2～3 个字为主），帮孩子看到这些字在不同词语里的样子。\n\n';
+  p += '【任务】只用孩子已经认识的字，组成 '+wordCount+' 个孩子没见过、但读得出来的常见词语（2～3 个字为主），帮孩子看到这些字在不同词语里的样子。数量少一点没关系，重点是每个词都必须完全正确。\n\n';
 
   p += '【孩子已经认识的字】（共 '+known.length+' 个，只能用这里面的字）：\n'+known.join('')+'\n\n';
 
   p += '【硬性要求：一个清单外的字都不能有】\n';
   p += '每一个词语里的每一个字，都必须来自上面这份清单，不允许出现清单外的字——哪怕只是常见字也不行。如果想用的词语里有清单外的字，换一个词。\n';
-  p += '写完请自己逐字检查一遍清单外有没有漏网的字，有就换掉。\n\n';
+  p += '写完请自己逐字检查一遍清单外有没有漏网的字，有就换掉，宁可少写几个词，也不要有一个生字。\n\n';
 
   if(focusSel.length){
     p += '【这次希望多练的字】：'+focusSel.join('、')+'\n';
-    p += '请优先给这几个字各组 1～2 个词，让孩子在不同词语里多见到它们。\n\n';
+    p += '请优先给这几个字各组 1 个词，让孩子在词语里多见到它们。\n\n';
   }
 
   p += '【主题】'+(topic.value.trim()? '尽量挑和「'+topic.value.trim()+'」相关的词语；如果清单里的字实在凑不出贴近主题的词，就换成孩子日常生活里常见的词语，不用勉强贴合主题。' : '不限主题，挑孩子日常生活里常见、实用的词语就好。')+'\n';
   if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'（在不违反"只能用清单里的字"这条硬性要求的前提下尽量满足）\n';
-  p += '\n【数量】大约组 '+wordCount+' 个词语，不用刚好，八九不离十就行。\n\n';
+  p += '\n【数量】正好 '+wordCount+' 个词语。\n\n';
 
   p += '【输出格式】严格按下面的格式，不要任何解释、不要拼音、不要编号、不要 markdown 符号：\n';
   p += '第一行：一个简短的小标题（2–8 个字，比如"认字小卡片"或跟主题相关的说法）\n';
   p += '第二行：空行\n';
-  p += '之后每行 4～6 个词语，词语之间用"、"隔开\n';
+  p += '之后一行：'+wordCount+' 个词语，用"、"隔开\n';
   return p;
 }
 
 function buildSentencePrompt(){
   const heroName = hero.value.trim();
   const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
-  const budget = Math.max(1, Math.round(Number(lenIn.value) * 0.08));
-  const sentCount = Math.max(4, Math.min(15, Math.round(Number(lenIn.value) / 8)));
+  const sentCount = 3;
 
-  let p = '你是一位幼儿识字教材编写者，现在要给一个正在学认字的孩子写几句"练句子"，帮孩子练习读连起来的句子，但不要求是一个完整故事。\n\n';
+  let p = '你是一位幼儿识字教材编写者，现在要给一个正在学认字的孩子写几句"练句子"练习，不是故事，不需要情节和连贯性。\n\n';
 
-  p += '【任务】写'+sentCount+'句左右简单、独立的短句。每句可以各自描述一件小事、一个动作或一个小场景，句子之间不需要有情节上的连续性，但每句读起来要自然、有画面感，不要写成"XX是XX"这种干巴巴的定义句，也不要写成"A做了X，B也做了X"这种反复排比。\n\n';
+  p += '【任务】只用孩子已经认识的字，写正好 '+sentCount+' 句简单、独立的短句。每句各自描述一件小事、一个动作或一个小场景就行，句子和句子之间不需要有情节上的连续性。数量少一点没关系，重点是每一句都必须完全正确，不要写成"XX是XX"这种干巴巴的定义句，也不要写成"A做了X，B也做了X"这种反复排比。\n\n';
 
   if(heroName) p += '【主角】可以（但不必每句都）用「'+heroName+'」做句子里的人物，读起来更亲切。\n\n';
 
-  p += '【主题】'+(topic.value.trim()? '尽量跟「'+topic.value.trim()+'」有关系。' : '不限，贴近幼儿日常生活就好。')+'\n';
-  if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'\n';
-  p += '\n';
+  p += '【孩子已经认识的字】（共 '+known.length+' 个，只能用这里面的字）：\n'+known.join('')+'\n\n';
+
+  p += '【硬性要求：一个清单外的字都不能有】\n';
+  p += '每一句里的每一个字，都必须来自上面这份清单，不允许出现清单外的字——哪怕只是常见字也不行。如果想写的句子里有清单外的字，换一种说法。\n';
+  p += '写完请自己逐字检查一遍清单外有没有漏网的字，有就换掉，宁可换个说法、换个场景，也不要有一个生字。\n\n';
 
   if(focusSel.length){
     p += '【这次希望多练的字】：'+focusSel.join('、')+'\n';
     p += '请让这几个字分别出现在不同的句子里。\n\n';
   }
 
-  p += '【孩子已经认识的字】（共 '+known.length+' 个，请尽量只用这些字）：\n'+known.join('')+'\n';
-  p += '全部句子加起来，其中**清单外的字最多只能有 '+budget+' 个**（不重复计数，同一个字用两次算一个）。写完请自己检查一遍，超了就换个说法。\n\n';
+  p += '【主题】'+(topic.value.trim()? '尽量挑和「'+topic.value.trim()+'」相关的场景；如果清单里的字实在凑不出贴近主题的句子，就换成孩子日常生活里常见的场景，不用勉强贴合主题。' : '不限，贴近幼儿日常生活就好。')+'\n';
+  if(extra.value.trim()) p += '- 额外要求：'+extra.value.trim()+'（在不违反"只能用清单里的字"这条硬性要求的前提下尽量满足）\n';
+  p += '\n【数量】正好 '+sentCount+' 句。\n\n';
 
   p += '只用简体中文，不要出现拼音、英文或生僻字。\n';
   p += '\n【输出格式】严格按下面的格式，不要任何解释、不要拼音、不要编号、不要 markdown 符号：\n';
   p += '第一行：一个简短的小标题（2–8 个字）\n';
   p += '第二行：空行\n';
-  p += '之后：每句话单独占一行\n';
+  p += '之后：每句话单独占一行，正好 '+sentCount+' 行\n';
   return p;
 }
 /* 复制：file:// 下 navigator.clipboard 会被禁用，所以用老办法兜底 */
@@ -871,8 +873,8 @@ function tidy(text){
 }
 
 const MAX_TRIES = 3;      // 最多重写几次
-/* 生字占比到这个数以下就收工——"组词"要求几乎不能有生字，"组句子"次之，"小故事"最宽松 */
-function goodRatioFor(m){ return m==='phrase' ? 0 : m==='sentence' ? 0.08 : 0.22; }
+/* 生字占比到这个数以下就收工——"组词""组句子"数量少，要求做到没有生字；"小故事"最宽松 */
+function goodRatioFor(m){ return m==='phrase' ? 0 : m==='sentence' ? 0 : 0.22; }
 
 async function askAI(prompt){
   const provider = providerSeg ? providerSeg.dataset.v : 'deepseek';
