@@ -174,6 +174,13 @@ rt.r{color:#c17d16}
  header,nav,.card,.bar,.no-print{display:none!important}
  body{background:#fff}#story{border:none;padding:0}
  main{padding:0;max-width:none}
+ /* 打印时页面宽度经常刚好落在 820px 这个断点附近，会被下面手机版的规则误判成"窄屏"，
+    导致本来两栏排的故事被拆成一栏、整体变高一倍，从而多印出一页。这里强制打印时始终两栏，
+    并把字号、行距、段间距都收紧一点，尽量让一篇故事印在一页里。 */
+ #story{display:grid!important;grid-template-columns:1fr 1fr!important;column-gap:24px}
+ #story h3{font-size:20px;margin:0 0 10px;padding-bottom:8px}
+ #story p{font-size:18px;line-height:1.9;margin:0 0 10px;letter-spacing:0.5px}
+ @page{margin:10mm}
 }
 </style>
 </head>
@@ -711,6 +718,12 @@ function buildStoryPrompt(){
   p += '孩子已经认识的字（共 '+known.length+' 个）：\n'+known.join('')+'\n';
   p += '全文（含标题）大约 '+lenIn.value+' 个字，其中**清单外的字最多只能有 '+budget+' 个**（不重复计数，同一个字用两次算一个）。\n';
   p += '写完请自己检查一遍：如果超了，不要删掉已经想好的情节，而是换一种孩子认识的字/说法表达同样的意思，直到符合为止——宁可换个说法，也不要把故事又改回流水账。\n\n';
+
+  p += '【小技巧：同样意思，优先选能多用几个清单里的字的说法】\n';
+  p += '很多词有简单说法和稍微长一点的说法，意思差不多，但长的说法里刚好多了一两个清单里的字——遇到这种情况，优先选长一点的那种，既更自然、更像小朋友说话的语气，又能让孩子多见几次已经认识的字。举两个例子：\n';
+  p += '- "兔" 单用比较少见，"兔子" 更自然——如果"子"在清单里，就写"兔子"，不要写"兔"。\n';
+  p += '- 一句感叹如果只写"……！"，可以看看清单里有没有"呀/啊/呢/吧"这类语气字，加一个变成"……呀！"，会更有童趣，也让这个字多出现一次。\n';
+  p += '同样的道理也适用于其他词：能选清单里字多的说法，就不要选字少但生字风险更高或更生硬的说法。\n\n';
 
   p += '【格式与语气】\n';
   p += '不要写成词语罗列或机械重复的排比句（比如"A做了X，B也做了X"反复出现好几次）——偶尔用一两次排比作为修辞可以，但不能是整篇故事的骨架。\n';
