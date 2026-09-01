@@ -683,7 +683,7 @@ function buildStoryPrompt(){
   let p = '你是一位很会给幼儿讲故事的儿童绘本作者，现在要写一个中文小故事，讲给一个正在学认字的孩子听。\n\n';
 
   p += '【主题】：'+topicTxt+'\n';
-  if(topicVal) p += '整篇故事都要是在写这个主题——读完要一眼看出这就是在讲"'+topicVal+'"，不能写一件跟主题没关系的小事、结尾才加一句主题词敷衍过去。\n';
+  if(topicVal) p += '先把主题拆开：里面的动作（买、去、找、洗…）和东西/地点，故事里都要真的发生、真的出现——「一起去买菜」就得真的去买，写成在自家菜园摘菜就算跑题。整篇都在写这件事，不能结尾才补一句主题词敷衍。\n';
   p += '\n';
 
   p += '【想故事——这不是造句练习，是一个真正的小故事】\n';
@@ -709,10 +709,10 @@ function buildStoryPrompt(){
   p += '- 篇幅：大约 '+lenIn.value+' 个字（不含标点），句子长短不限，怎么读起来自然就怎么写。\n\n';
 
   const known = CHARS.filter(c=> st[c]===1 || st[c]===2);
-  const budget = Math.max(2, Math.round(Number(lenIn.value) * 0.2));
+  const budget = storyBudget();
   p += '【换成孩子认识的字】\n';
   p += '孩子已经认识的字（共 '+known.length+' 个）：\n'+known.join('')+'\n';
-  p += '全文（含标题）其中**清单外的字最多只能有 '+budget+' 个**（不重复计数，同一个字用两次算一个）。如果超了，不要删掉已经想好的情节，换一种孩子认识的字/说法表达同样的意思，直到符合为止——宁可换个说法，也不要把故事又改回流水账。\n';
+  p += '规则：一句话里最多只允许出现 1 个清单外的字，写一句查一句，能不用就不用。全文（含标题）清单外的字合起来不超过 '+budget+' 个（同一个字用几次算一个）。超了不要删情节，换孩子认识的说法表达同样的意思。\n';
   p += '小技巧：很多词有简单说法和稍微长一点的说法，意思差不多，但长的说法刚好多用了一两个清单里的字——这种情况优先选长一点的那种，既更自然、更像小朋友说话的语气，又能让孩子多见几次已经认识的字。比如"兔"单用比较少见，清单里有"子"的话就写"兔子"；一句感叹如果只写"……！"，清单里有"呀/啊/呢/吧"这类语气字的话，就写成"……呀！"，更有童趣。\n\n';
 
   p += '【格式与语气】\n';
@@ -720,8 +720,8 @@ function buildStoryPrompt(){
   p += '温暖、正面，适合 4–7 岁孩子，可以有一点点小幽默，不要说教。只用简体中文，不要出现拼音、英文或生僻字。\n\n';
 
   p += '【写完自查】\n';
-  if(topicVal) p += '- 主题：把主题词遮住，单看内容，读者也该能猜出在写"'+topicVal+'"——如果换个完全不相关的主题也说得通，就是跑题了，回去重想第 2 条里的那件"小事"。\n';
-  p += '- 生字：数一下清单外的字有没有超过预算，超了就换种认识的字/说法，不要删情节。\n';
+  if(topicVal) p += '- 主题：主题「'+topicVal+'」里的每个动作、每样东西，故事里是不是都真的出现了？只是方向沾边不算数，缺了就回去重写第 2 条那件小事。\n';
+  p += '- 生字：逐句回看，有没有哪句出现了 2 个以上清单外的字？有就改掉那一句。\n';
   p += '- 格式：不要拼音、不要解释、不要 markdown 符号。\n\n';
 
   p += '【输出格式】严格按下面的格式：\n';
@@ -874,6 +874,16 @@ function newRatioOf(text){
   const news = hz.filter(c => st[c] !== 1 && st[c] !== 2);
   return news.length / hz.length;
 }
+/** 算一段文字里「孩子没学过的字」有几个（同一个字算一个）——跟给 AI 的指令用同一套算法 */
+function newCountOf(text){
+  return new Set([...String(text)].filter(c=>/[一-鿿]/.test(c) && st[c]!==1 && st[c]!==2)).size;
+}
+/** 「小故事」允许的生字预算：跟指令里写给 AI 的数字保持一致 */
+function storyBudget(){ return Math.max(2, Math.round(Number(lenIn.value) * 0.2)); }
+/** 是否算合格：小故事按「不重复生字个数」，组词/组句子按占比 */
+function passOK(m, ncount, ratio){
+  return m === 'story' ? ncount <= storyBudget() : ratio <= goodRatioFor(m);
+}
 /** 清掉 AI 有时会带的 markdown 记号和「标题：」前缀 */
 function tidy(text){
   return String(text).trim()
@@ -908,27 +918,27 @@ autoGo.onclick = async ()=>{
   const label = autoGo.textContent;
   gmsg.className = 'msg'; gmsg.textContent = '';
 
-  let best = null, bestRatio = 1;
+  let best = null, bestRatio = 1, bestNew = 9999;
   try{
     for(let attempt = 1; attempt <= MAX_TRIES; attempt++){
       autoGo.textContent = attempt === 1 ? '正在写故事…' : ('生字偏多，重写中…（第 '+attempt+' 次）');
       autoMsg.textContent = attempt === 1
         ? '通常 10–30 秒，请稍等'
-        : '上一版生字占 '+Math.round(bestRatio*100)+'%，让 AI 再写一版';
+        : '上一版有 '+bestNew+' 个没学过的字，让 AI 再写一版';
 
       let prompt = buildPrompt();
       if(attempt > 1){
         // 把上一次没做到的地方明确告诉它
         const bad = [...new Set([...best].filter(c=>/[一-鿿]/.test(c) && st[c]!==1 && st[c]!==2))];
         prompt += '\n\n【重要：上一版不合格，请重写】\n';
-        prompt += '上一版清单外的字太多了，用了这些：'+bad.join('、')+'\n';
-        prompt += '请换一种写法，避开其中大部分字，只保留最必要的几个。内容可以更简单。\n';
+        prompt += '上一版用了这些清单外的字：'+bad.join('、')+'\n';
+        prompt += '重写时这些字一个都不要再用（实在绕不开的最多留 2 个）。情节保持不变，只换说法。\n';
       }
 
       const text = await askAI(prompt);
-      const ratio = newRatioOf(text);
-      if(ratio < bestRatio){ bestRatio = ratio; best = text; }
-      if(bestRatio <= goodRatioFor(mode.value)) break;
+      const ratio = newRatioOf(text), ncount = newCountOf(text);
+      if(best === null || ncount < bestNew){ bestNew = ncount; bestRatio = ratio; best = text; }
+      if(passOK(mode.value, bestNew, bestRatio)) break;
     }
 
     // "组词"/"组句子"不让 AI 写标题（AI 挑的标题字经常超出孩子认识的范围），这里本地加一个固定标题
@@ -937,10 +947,12 @@ autoGo.onclick = async ()=>{
     autoMsg.textContent = '';
     pgo.click();                       // 复用手动流程的排版 + 成绩单
 
-    if(bestRatio > goodRatioFor(mode.value)){
+    if(!passOK(mode.value, bestNew, bestRatio)){
       gmsg.className = 'msg';
       gmsg.style.cssText = 'display:block;background:#fff6e5;border:1px solid #f0c987;color:#8a5a10';
-      gmsg.textContent = '写好了，但生字还是偏多（'+Math.round(bestRatio*100)+'%）。'
+      gmsg.textContent = (mode.value === 'story'
+        ? '写好了，但没学过的字还是偏多（'+bestNew+' 个，目标 '+storyBudget()+' 个以内）。'
+        : '写好了，但生字还是偏多（'+Math.round(bestRatio*100)+'%）。')
         + '试了 '+MAX_TRIES+' 次，这是最好的一版。可以再点一次，或把字数调小一点。';
     }
   }catch(e){
