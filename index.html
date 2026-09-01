@@ -880,9 +880,9 @@ function newCountOf(text){
 }
 /** 「小故事」允许的生字预算：跟指令里写给 AI 的数字保持一致 */
 function storyBudget(){ return Math.max(2, Math.round(Number(lenIn.value) * 0.2)); }
-/** 是否算合格：小故事按「不重复生字个数」，组词/组句子按占比 */
+/** 是否算合格：一律按「生字占比」判——小故事 25% 以内，组词/组句子要求零生字 */
 function passOK(m, ncount, ratio){
-  return m === 'story' ? ncount <= storyBudget() : ratio <= goodRatioFor(m);
+  return ratio <= goodRatioFor(m);
 }
 /** 清掉 AI 有时会带的 markdown 记号和「标题：」前缀 */
 function tidy(text){
@@ -895,7 +895,7 @@ function tidy(text){
 
 const MAX_TRIES = 3;      // 最多重写几次
 /* 生字占比到这个数以下就收工——"组词""组句子"数量少，要求做到没有生字；"小故事"最宽松 */
-function goodRatioFor(m){ return m==='phrase' ? 0 : m==='sentence' ? 0 : 0.22; }
+function goodRatioFor(m){ return m==='phrase' ? 0 : m==='sentence' ? 0 : 0.25; }
 
 async function askAI(prompt){
   const provider = providerSeg ? providerSeg.dataset.v : 'deepseek';
@@ -937,7 +937,7 @@ autoGo.onclick = async ()=>{
 
       const text = await askAI(prompt);
       const ratio = newRatioOf(text), ncount = newCountOf(text);
-      if(best === null || ncount < bestNew){ bestNew = ncount; bestRatio = ratio; best = text; }
+      if(best === null || ratio < bestRatio){ bestRatio = ratio; bestNew = ncount; best = text; }
       if(passOK(mode.value, bestNew, bestRatio)) break;
     }
 
@@ -951,9 +951,9 @@ autoGo.onclick = async ()=>{
       gmsg.className = 'msg';
       gmsg.style.cssText = 'display:block;background:#fff6e5;border:1px solid #f0c987;color:#8a5a10';
       gmsg.textContent = (mode.value === 'story'
-        ? '写好了，但没学过的字还是偏多（'+bestNew+' 个，目标 '+storyBudget()+' 个以内）。'
+        ? '写好了，但生字还是偏多（占比 '+Math.round(bestRatio*100)+'%，'+bestNew+' 个不同的生字，目标 25% 以内）。'
         : '写好了，但生字还是偏多（'+Math.round(bestRatio*100)+'%）。')
-        + '试了 '+MAX_TRIES+' 次，这是最好的一版。可以再点一次，或把字数调小一点。';
+        + '试了 '+MAX_TRIES+' 次，这是最好的一版。可以再点一次换个版本（把字数调小没有用，占比不会变）。';
     }
   }catch(e){
     autoMsg.textContent = '';
