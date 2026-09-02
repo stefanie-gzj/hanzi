@@ -97,7 +97,7 @@ module.exports = async (req, res) => {
       temperature: 1.0,   // 让每次故事都不一样
       max_tokens: 8000,   // 给足空间，避免被截断
     };
-    if (withThinking) b.thinking = { type: 'disabled' };
+    if (withThinking) b.thinking = { type: model.includes('reasoner') ? 'enabled' : 'disabled' };
     return JSON.stringify(b);
   };
 
