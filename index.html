@@ -108,13 +108,9 @@ details.manual-fallback .manual-body{margin-top:16px}
 .chips::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
 .chip{border:1px solid var(--s-review-b);background:#fff;border-radius:9px;padding:6px 11px;
  cursor:pointer;font-size:19px;font-family:inherit;display:flex;flex-direction:column;
- align-items:center;line-height:1.15;min-width:44px;position:relative}
+ align-items:center;line-height:1.15;min-width:44px}
 .chip small{font-size:10px;color:var(--muted)}
 .chip.on{background:var(--s-review);box-shadow:0 2px 0 var(--s-review-b)}
-.chip-know{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;
- background:#2e7d32;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;
- justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3);line-height:1}
-.chip-know:active{background:#1b5e20}
 /* 故事 */
 #story{background:#fffdf8;border:1px solid var(--line);border-radius:16px;padding:30px 34px;min-height:110px}
 #story h3{text-align:center;font-size:24px;margin:0 0 18px;font-weight:800;
@@ -707,20 +703,7 @@ function buildChips(){
     b.className = 'chip' + (focusSel.includes(c)?' on':'');
     b.dataset.c = c;
     b.appendChild(document.createTextNode(c));
-    const sm = document.createElement('small'); sm.textContent = PY[c]||''; b.appendChild(sm);
-    const know = document.createElement('span');
-    know.className = 'chip-know'; know.title = '标记为已经会了，从「需要巩固」里移除';
-    know.textContent = '✓';
-    know.onclick = (e)=>{
-      e.stopPropagation();
-      st[c] = 1; save();
-      const idx = focusSel.indexOf(c);
-      if(idx>=0) focusSel.splice(idx,1);
-      drawGrid(); stats();
-      buildChips();
-      if(typeof wcBuildChips==='function') wcBuildChips(); // 和"词语卡"页的选字同步
-    };
-    b.appendChild(know);
+    const s = document.createElement('small'); s.textContent = PY[c]||''; b.appendChild(s);
     b.onclick = ()=>{
       const i = focusSel.indexOf(c);
       if(i>=0) focusSel.splice(i,1);
@@ -1350,21 +1333,6 @@ function wcBuildChips(){
     b.className = 'chip' + (focusSel.includes(c)?' on':'');
     b.appendChild(document.createTextNode(c));
     const sm = document.createElement('small'); sm.textContent = PY[c]||''; b.appendChild(sm);
-    const know = document.createElement('span');
-    know.className = 'chip-know'; know.title = '标记为已经会了，从「需要巩固」里移除';
-    know.textContent = '✓';
-    know.onclick = (e)=>{
-      e.stopPropagation();
-      st[c] = 1; save();
-      const idx = focusSel.indexOf(c);
-      if(idx>=0) focusSel.splice(idx,1);
-      drawGrid(); stats();
-      wcBuildChips();
-      if(typeof buildChips==='function') buildChips(); // 和"做绘本"页的选字同步
-      const data = wcLoadData();
-      if(data) wcRender(data);
-    };
-    b.appendChild(know);
     b.onclick = ()=>{
       const idx = focusSel.indexOf(c);
       if(idx>=0) focusSel.splice(idx,1);
