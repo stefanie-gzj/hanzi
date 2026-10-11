@@ -183,13 +183,30 @@ rt.r{color:#c17d16}
 .print-only{display:none}
 .wc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .wc-sec{font-size:13px;color:#8a94a8;margin:0 0 8px}
+.wc-cell{position:relative}
+.wc-del{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:1px solid #e3c9c0;background:#fff;color:#c0553a;font-size:14px;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.wc-cell:hover .wc-del,.wc-del:focus{opacity:1}
+@media (hover:none){.wc-del{opacity:.9;width:18px;height:18px;font-size:11px;top:-6px;right:-6px;box-shadow:0 1px 3px rgba(0,0,0,.12)}}
+.wc-hz.wc-long{font-size:22px}
+.wc-undo{margin-top:10px;padding:8px 12px;border-radius:10px;background:#fff6ec;border:1px solid #f1d9bf;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.wc-undo[hidden]{display:none}
+.wc-undo button{padding:4px 12px;font-size:13px}
+.wb-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.wb-row input{flex:1 1 140px;min-width:0}
+.wb-row #wbWord{flex:0 1 150px;font-size:18px}
+.wb-group{margin-top:12px}
+.wb-group h3{font-size:14px;margin:0 0 6px;color:var(--muted);font-weight:600}
+.wb-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 6px 5px 11px;margin:0 6px 6px 0;font-size:16px}
+.wb-chip small{font-size:11px;color:var(--muted)}
+.wb-chip button{border:none;background:#f3efe6;border-radius:7px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--ink)}
+.wb-chip button:hover{background:#e9e3d7}
 .wc-sec2{margin-top:18px;padding-top:14px;border-top:1px dashed #d3dbea}
 .wc-cell{border:1px solid #dfe5f0;border-radius:12px;background:#fafbfd;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 2px;gap:2px;line-height:1.2}
 .wc-py{font-size:13px;color:#3f6cb3;white-space:nowrap}
 .wc-hz{font-size:28px;font-weight:500;color:#1f2a44;white-space:nowrap;letter-spacing:1px}
 .wc-hz .wc-weak{color:#c9862a}
 .wc-hz .wc-focus{color:var(--accent);font-weight:800}
-@media (max-width:520px){.wc-panel{padding:12px}.wc-grid{gap:6px}.wc-cell{padding:8px 1px;border-radius:10px}.wc-py{font-size:10px;letter-spacing:-.2px}.wc-hz{font-size:22px;letter-spacing:0}}
+@media (max-width:520px){.wc-panel{padding:12px}.wc-grid{gap:6px}.wc-cell{padding:8px 1px;border-radius:10px}.wc-py{font-size:10px;letter-spacing:-.2px}.wc-hz{font-size:22px;letter-spacing:0}.wc-hz.wc-long{font-size:16px}}
 @media print{
   /* A4 一页：上半 4列×5行（有拼音），下半同样 20 个词打乱顺序 4列×5行（无拼音） */
   @page{size:A4;margin:8mm 14mm}
@@ -203,6 +220,8 @@ rt.r{color:#c17d16}
   .wc-py{font-size:11pt;color:#3f6cb3;margin-bottom:.5mm}
   .wc-hz{font-size:30pt;font-weight:400;color:#1f2a44;letter-spacing:0}
   .wc-hz .wc-weak,.wc-hz .wc-focus{color:#1f2a44!important;font-weight:400!important}
+  .wc-hz.wc-long{font-size:24pt}
+  .wc-del,.wc-undo{display:none!important}
   #wcPrintFoot{text-align:center;font-size:8.5pt;color:#9aa3b5;margin-top:3mm}
   .print-only{display:block!important}
   #word.page{padding:0!important;margin:0!important;min-height:0!important;height:auto!important}
@@ -306,6 +325,8 @@ rt.r{color:#c17d16}
       <button class="ghost" id="wcPrintBtn">🖨️ 打印这批</button>
     </div>
     <p class="hint" id="wcMeta" style="margin-top:10px"></p>
+    <p class="hint">觉得哪个词奇怪？把鼠标移到词上，点右上角的 <b>×</b> 就能从词库删掉，空位会自动补一个新词。</p>
+    <div class="wc-undo" id="wcUndo" hidden></div>
   </div>
   <div class="wc-panel" id="wcCard">
     <h3 class="print-only" id="wcPrintTitle" style="margin:0 0 4px">本周词语卡</h3>
@@ -315,6 +336,18 @@ rt.r{color:#c17d16}
     <div class="wc-sec wc-sec2">第二遍：没有拼音，自己认一认（顺序打乱了）</div>
     <div id="wcGrid2" class="wc-grid wc-nopy"></div>
     <p class="hint print-only" id="wcPrintFoot"></p>
+  </div>
+  <div class="card no-print" id="wbCard">
+    <h2>我的词库</h2>
+    <p class="hint">输入一个词（2–4 个字），可以<b>添加</b>常用词，也可以<b>删除</b>不想要的词。改动只保存在这台设备的浏览器里；换设备时用字库页的「导出 / 导入」备份，会一起带过去。</p>
+    <div class="wb-row">
+      <input type="text" id="wbWord" placeholder="例如：闹心" maxlength="4" autocomplete="off">
+      <input type="text" id="wbPy" placeholder="拼音（自动生成，可修改）" autocomplete="off">
+      <button class="act" id="wbAddBtn">＋ 添加</button>
+      <button class="ghost" id="wbDelBtn">－ 从词库删除</button>
+    </div>
+    <p class="hint" id="wbMsg" style="margin-top:8px"></p>
+    <div id="wbLists"></div>
   </div>
 </section>
 
@@ -670,7 +703,7 @@ bgo.onclick = ()=>{
   save(); drawGrid(); stats(); buildChips(); if(typeof wcBuildChips==='function') wcBuildChips();
 };
 expBtn.onclick = ()=>{
-  const blob = new Blob([JSON.stringify({st},null,1)],{type:'application/json'});
+  const blob = new Blob([JSON.stringify({st, wordbank: (typeof wbCustom!=='undefined' ? wbCustom : undefined)},null,1)],{type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '识字进度_'+new Date().toISOString().slice(0,10)+'.json';
@@ -680,7 +713,9 @@ impb.onclick = ()=> imp.click();
 imp.onchange = e=>{
   const fr = new FileReader();
   fr.onload = ()=>{ try{ const d=JSON.parse(fr.result);
-    if(d.st){ st=d.st; save(); drawGrid(); stats(); buildChips(); if(typeof wcBuildChips==='function') wcBuildChips(); alert('导入成功'); } }
+    if(d.st){ st=d.st; save();
+      if(d.wordbank && Array.isArray(d.wordbank.added) && Array.isArray(d.wordbank.removed)){ wbCustom = d.wordbank; wbSave(); wbRenderLists(); }
+      drawGrid(); stats(); buildChips(); if(typeof wcBuildChips==='function') wcBuildChips(); alert('导入成功'); } }
     catch(x){ alert('这个文件读不了'); } };
   fr.readAsText(e.target.files[0]);
 };
@@ -1268,6 +1303,34 @@ function wcShuffle(arr){
   for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
   return a;
 }
+/* ---------- 我的词库：在内置词库基础上，加上自己添加的词、去掉自己删除的词（只存在本机浏览器） ---------- */
+const WB_LS = 'wordbank_custom_v1';
+const WB_BASE = new Set(WORDBANK.map(b=>b.w));
+let wbCustom = (function(){
+  try{ const d = JSON.parse(localStorage.getItem(WB_LS)||'null');
+    if(d && Array.isArray(d.added) && Array.isArray(d.removed)) return d; }catch(e){}
+  return {added:[], removed:[]};
+})();
+function wbSave(){ localStorage.setItem(WB_LS, JSON.stringify(wbCustom)); }
+function wcBank(){
+  const rm = new Set(wbCustom.removed);
+  return WORDBANK.filter(b=> !rm.has(b.w)).concat(wbCustom.added.filter(b=> !rm.has(b.w)));
+}
+function wbInBank(w){ return wcBank().some(b=> b.w===w); }
+/* 自动拼音：逐字查字表，"一""不"按后一个字的声调变调；结果可以手动改 */
+function wbAutoPy(w){
+  const chars = [...w];
+  const tone = py=>{ if(!py) return 0; const m='āēīōūǖ'.split(''),m2='áéíóúǘ',m3='ǎěǐǒǔǚ',m4='àèìòùǜ';
+    for(const ch of py){ if(m.includes(ch)) return 1; if(m2.includes(ch)) return 2; if(m3.includes(ch)) return 3; if(m4.includes(ch)) return 4; } return 0; };
+  return chars.map((c,i)=>{
+    let py = PY[c] || '';
+    const next = PY[chars[i+1]];
+    if(c==='不' && next){ py = tone(next)===4 ? 'bú' : 'bù'; }
+    if(c==='一' && next){ py = tone(next)===4 ? 'yí' : 'yì'; }
+    return py;
+  }).join(' ').trim();
+}
+
 function wcIsAvailable(b){ for(const c of b.w){ if(!(st[c]>0)) return false; } return true; }
 function wcIsWeak(b){ for(const c of b.w){ if(st[c]===2) return true; } return false; }
 function wcHasFocus(b){ if(!focusSel.length) return false; for(const c of b.w){ if(focusSel.includes(c)) return true; } return false; }
@@ -1281,7 +1344,7 @@ function wcTier(list){
 }
 
 function wcPick(){
-  const avail = WORDBANK.filter(wcIsAvailable);
+  const avail = wcBank().filter(wcIsAvailable);
   const words = avail.filter(b=>b.k==='w');
   const phrases = avail.filter(b=>b.k==='p');
   const phraseList = wcTier(phrases).slice(0, WC_PHRASE_CAP);
@@ -1301,6 +1364,7 @@ function wcGenerate(forceNew){
     if(changed) wcSaveData(data);
     wcRender(data); return;
   }
+  const ub = document.getElementById('wcUndo'); if(ub){ ub.hidden = true; } wcLastUndo = null;
   const {picked, availCount} = wcPick();
   const batchNo = (data && data.weekKey===wk) ? data.batchNo+1 : 1;
   data = { weekKey:wk, batchNo, words:picked, order2:wcOrder2(picked.length), availCount };
@@ -1342,7 +1406,7 @@ function wcFillGrid(grid, words, showPy){
     py.className = 'wc-py';
     py.textContent = b.p;
     const hz = document.createElement('div');
-    hz.className = 'wc-hz';
+    hz.className = 'wc-hz' + (b.w.length>=4 ? ' wc-long' : '');
     for(let ci=0; ci<b.w.length; ci++){
       const ch = b.w[ci];
       const sp = document.createElement('span');
@@ -1353,9 +1417,156 @@ function wcFillGrid(grid, words, showPy){
     }
     if(showPy) cell.appendChild(py);
     cell.appendChild(hz);
+    if(showPy){
+      const del = document.createElement('button');
+      del.className = 'wc-del no-print';
+      del.title = '从词库删除「'+b.w+'」';
+      del.setAttribute('aria-label', del.title);
+      del.textContent = '×';
+      del.onclick = ()=> wcDeleteWord(b.w);
+      cell.appendChild(del);
+    }
     grid.appendChild(cell);
   });
 }
+
+/* ---------- 删除 / 添加词语，并同步到当前这批词语卡 ---------- */
+let wcLastUndo = null;
+/* 从词库里挑一个能用、且不在当前这批里的词（按 重点字 > 需要巩固 > 其他 的顺序） */
+function wcPickReplacement(exclude){
+  const ex = new Set(exclude);
+  const pool = wcBank().filter(b=> wcIsAvailable(b) && !ex.has(b.w));
+  return wcTier(pool)[0] || null;
+}
+function wbRemoveFromBank(w){
+  wbCustom.added = wbCustom.added.filter(b=> b.w!==w);
+  if(WB_BASE.has(w) && !wbCustom.removed.includes(w)) wbCustom.removed.push(w);
+  wbSave();
+}
+function wcDeleteWord(w){
+  const data = wcLoadData();
+  const before = JSON.parse(JSON.stringify(wbCustom));
+  const dataBefore = data ? JSON.parse(JSON.stringify(data)) : null;
+  const wasAdded = wbCustom.added.find(b=> b.w===w) || null;
+  wbRemoveFromBank(w);
+  let msg = '已从词库删除「'+w+'」';
+  if(data){
+    const i = data.words.findIndex(b=> b.w===w);
+    if(i>=0){
+      const rep = wcPickReplacement(data.words.map(b=>b.w));
+      if(rep){ data.words[i] = rep; msg += '，换成了「'+rep.w+'」'; }
+      else {
+        data.words.splice(i,1);
+        data.order2 = data.order2.filter(k=> k!==i).map(k=> k>i ? k-1 : k);
+        msg += '（词库里没有别的词可以补了）';
+      }
+      wcSaveData(data); wcRender(data);
+    }
+  }
+  wcShowUndo(msg, ()=>{ wbCustom = before; wbSave(); if(dataBefore){ wcSaveData(dataBefore); wcRender(dataBefore); } wbRenderLists(); });
+  wbRenderLists();
+}
+function wcShowUndo(msg, undoFn){
+  const box = $('wcUndo');
+  wcLastUndo = undoFn;
+  box.innerHTML = '';
+  const t = document.createElement('span'); t.textContent = msg + '。'; box.appendChild(t);
+  if(undoFn){
+    const b = document.createElement('button'); b.className='ghost'; b.textContent='↩ 撤销';
+    b.onclick = ()=>{ if(wcLastUndo){ wcLastUndo(); wcLastUndo=null; } box.hidden = true; };
+    box.appendChild(b);
+  }
+  box.hidden = false;
+}
+/* 新词放进当前这批：优先替换一个"普通"的词（不含重点字、不含需要巩固的字），没有就替换最后一个 */
+function wcInsertIntoBatch(entry){
+  const data = wcLoadData();
+  if(!data) return false;
+  if(data.words.some(b=> b.w===entry.w)) return true;
+  if(data.words.length < WC_TARGET){
+    data.words.push(entry);
+    const n = data.words.length-1;
+    const pos = Math.floor(Math.random()*(data.order2.length+1));
+    data.order2.splice(pos,0,n);
+  } else {
+    let i = -1;
+    for(let k=data.words.length-1; k>=0; k--){
+      const b = data.words[k];
+      if(!wcHasFocus(b) && !wcIsWeak(b) && !wbCustom.added.some(a=> a.w===b.w)){ i = k; break; }
+    }
+    if(i<0) i = data.words.length-1;
+    data.words[i] = entry;
+  }
+  wcSaveData(data); wcRender(data);
+  return true;
+}
+
+const wbWord = $('wbWord'), wbPy = $('wbPy'), wbMsg = $('wbMsg');
+let wbPyTouched = false;
+function wbCleanWord(){ return (wbWord.value||'').replace(/[\s，,。.、]/g,''); }
+if(wbWord) wbWord.oninput = ()=>{
+  const w = wbCleanWord();
+  if(!wbPyTouched) wbPy.value = w ? wbAutoPy(w) : '';
+  if(!w){ wbMsg.textContent=''; return; }
+  wbMsg.textContent = wbInBank(w) ? '「'+w+'」已经在词库里了。' : '';
+};
+if(wbPy) wbPy.oninput = ()=>{ wbPyTouched = !!wbPy.value; };
+
+$('wbAddBtn').onclick = ()=>{
+  const w = wbCleanWord();
+  const py = (wbPy.value||'').trim() || wbAutoPy(w);
+  if(!/^[\u3400-\u9fff]{2,4}$/.test(w)){ wbMsg.textContent = '请输入 2–4 个汉字。'; return; }
+  if(wbInBank(w)){ wbMsg.textContent = '「'+w+'」已经在词库里了，不用再加。'; return; }
+  const before = JSON.parse(JSON.stringify(wbCustom));
+  const dataBefore = wcLoadData() ? JSON.parse(JSON.stringify(wcLoadData())) : null;
+  if(WB_BASE.has(w)) wbCustom.removed = wbCustom.removed.filter(x=> x!==w);   // 之前删过的内置词：恢复
+  else wbCustom.added.push({w, p:py, k:'w'});
+  wbSave();
+  const entry = WB_BASE.has(w) ? WORDBANK.find(b=> b.w===w) : {w, p:py, k:'w'};
+  const notIn = [...w].filter(c=> !IDX[c]);
+  const notLearned = [...w].filter(c=> IDX[c] && !(st[c]>0));
+  let msg = '已把「'+w+'」（'+entry.p+'）加进词库';
+  if(notIn.length) msg += '。注意：「'+notIn.join('')+'」不在 1300 字表里，所以这个词不会出现在词语卡上';
+  else if(notLearned.length) msg += '。「'+notLearned.join('')+'」还没学，等标成「会了」或「需要巩固」后，这个词才会出现';
+  else { wcInsertIntoBatch(entry); msg += '，并放进了这批词语卡'; }
+  wcShowUndo(msg, ()=>{ wbCustom = before; wbSave(); if(dataBefore){ wcSaveData(dataBefore); wcRender(dataBefore); } wbRenderLists(); });
+  wbMsg.textContent = '';
+  wbWord.value = ''; wbPy.value = ''; wbPyTouched = false;
+  wbRenderLists();
+};
+$('wbDelBtn').onclick = ()=>{
+  const w = wbCleanWord();
+  if(!w){ wbMsg.textContent = '先在左边输入要删除的词。'; return; }
+  if(!wbInBank(w)){ wbMsg.textContent = '词库里没有「'+w+'」。'; return; }
+  wcDeleteWord(w);
+  wbMsg.textContent = '';
+  wbWord.value = ''; wbPy.value = ''; wbPyTouched = false;
+};
+if(wbWord) wbWord.onkeydown = e=>{ if(e.key==='Enter') $('wbAddBtn').click(); };
+
+function wbRenderLists(){
+  const box = $('wbLists');
+  box.innerHTML = '';
+  const mk = (title, items, btnText, onBtn)=>{
+    if(!items.length) return;
+    const g = document.createElement('div'); g.className='wb-group';
+    const h = document.createElement('h3'); h.textContent = title+'（'+items.length+'）'; g.appendChild(h);
+    items.forEach(it=>{
+      const c = document.createElement('span'); c.className='wb-chip';
+      c.appendChild(document.createTextNode(it.w));
+      if(it.p){ const sm=document.createElement('small'); sm.textContent=it.p; c.appendChild(sm); }
+      const b = document.createElement('button'); b.textContent = btnText; b.onclick = ()=> onBtn(it.w);
+      c.appendChild(b); g.appendChild(c);
+    });
+    box.appendChild(g);
+  };
+  mk('我添加的词', wbCustom.added, '删除', w=> wcDeleteWord(w));
+  mk('我删掉的词', wbCustom.removed.map(w=>{ const b=WORDBANK.find(x=>x.w===w); return {w, p:b?b.p:''}; }), '恢复', w=>{
+    wbCustom.removed = wbCustom.removed.filter(x=> x!==w); wbSave(); wbRenderLists();
+    wcShowUndo('已恢复「'+w+'」，以后换一批时可能会再出现', null);
+  });
+}
+wbRenderLists();
 
 /* ---------- 本次重点巩固（与「做绘本」页共用同一份选字，选一次两边都生效） ---------- */
 function wcReviewList(){ return CHARS.filter(c=> st[c]===2); }
