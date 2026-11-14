@@ -375,7 +375,7 @@ rt.r{color:#c17d16}
 
     <div class="gstep" style="margin-top:14px">
       <p class="gt"><span class="step">1</span>这次的故事有什么特别要求吗？（可以留空）</p>
-      <p class="hint">留空的话，会请 AI 写一个孩子喜欢的、搞笑有意思的故事。故事的长短和用字，会按这个小朋友现在认识的字自动决定。</p>
+      <p class="hint">留空的话，会请 AI 写孩子最爱的那类故事：<b>科学好奇</b>、<b>屎尿屁笑话</b>或<b>夸张搞笑</b>，每次复制随机换一种。故事的长短和用字，会按这个小朋友现在认识的字自动决定。</p>
     </div>
     <textarea id="extra" placeholder="例如：主角叫乐乐；讲下雪天；要有一只小狗。没有特别要求就留空。"></textarea>
     <p class="hint" id="planhint" style="margin:8px 0 0"></p>
@@ -713,6 +713,23 @@ function pickSome(arr, n){
   for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
   return a.slice(0, n);
 }
+/* 搞笑专用字：不在 1300 字表里，但写屎尿屁笑话绕不开，所以不算"清单外的字" */
+const FUN_CHARS = '屁屎尿臭嗝';
+/* 没有特别要求时，每次随机挑一个方向（孩子最爱：科学好奇、屎尿屁），这样每次复制的指令都不一样 */
+const STORY_FLAVORS = [
+  { w:4, name:'科学好奇',
+    text:'这次写「科学好奇 + 搞笑」的故事：主角对身边一件事冒出一个"为什么"（比如：为什么会打嗝？影子为什么老跟着我？鱼会不会放屁？肚子为什么会咕咕叫？冰为什么不见了？），然后用一个很逗的办法去试、去猜，中间猜错了闹出笑话，最后知道了一个真实的小知识。这个小知识必须是真的，用一句孩子听得懂的话说出来，不要编造。上面的例子只是示意，请换一个不一样的"为什么"。' },
+  { w:4, name:'屎尿屁',
+    text:'这次写「屎尿屁」笑话故事：围绕放屁、便便、尿尿、打嗝、臭脚丫这类孩子觉得最好笑的事来写（比如：到底是谁放的屁？一个特别响的屁把谁吓了一跳？屁能不能把气球吹起来？）。要好笑、可爱，不下流、不恶心：不描写细节，不嘲笑、不羞辱任何人，最好结尾大家一起笑。上面的例子只是示意，请换一个不一样的点子。' },
+  { w:2, name:'夸张搞笑',
+    text:'这次写「夸张搞笑」的故事：一个出乎意料的小意外、一场夸张的小误会，或者主角想出了一个特别逗的笨办法，结果越弄越好笑。' }
+];
+function pickFlavor(){
+  const total = STORY_FLAVORS.reduce((a,f)=> a+f.w, 0);
+  let r = Math.random()*total;
+  for(const f of STORY_FLAVORS){ r -= f.w; if(r < 0) return f; }
+  return STORY_FLAVORS[0];
+}
 function buildPrompt(){
   const plan = storyPlan();
   return plan.kind==='sentence' ? buildSentencePrompt(plan) : buildStoryPrompt(plan);
@@ -733,9 +750,9 @@ function buildStoryPrompt(plan){
   if(want){
     p += '【家长的特别要求】（最优先满足）：'+want+'\n';
     p += '要求里提到的人名、动物、东西、地点、要做的事，故事里都要真的出现、真的发生——比如要求「一起去买菜」就得真的去买，写成在自家菜园摘菜就算跑题。如果提到了具体的名字，就当成贯穿全文的角色名字来用。\n';
-    p += '要求里没有说的部分由你决定，方向是：孩子会觉得搞笑、有意思。\n\n';
+    p += '要求里没有说的部分由你决定。这个孩子最喜欢两类故事：一类是「科学好奇 + 搞笑」（对一件事好奇"为什么"，用很逗的办法去试，最后知道一个真实的小知识）；另一类是「屎尿屁」笑话（放屁、便便、打嗝、臭脚丫，好笑但不下流）。能往这两个方向靠就尽量靠。\n\n';
   }else{
-    p += '【主题】家长没有特别要求，请你自己想一个 4–7 岁孩子会觉得搞笑、有意思的点子，比如：出乎意料的小意外、小动物做了一件傻事、夸张的小误会、主角想了一个很逗的办法。每次都换一个不一样的点子，不要总写同一类故事。\n\n';
+    p += '【这次写什么】家长没有特别要求。'+pickFlavor().text+'\n\n';
   }
 
   p += '【想故事——这不是造句练习，是一个真正的小故事】\n';
@@ -755,6 +772,7 @@ function buildStoryPrompt(plan){
   p += '【只用孩子认识的字】\n';
   p += '孩子已经认识的字（共 '+known.length+' 个）：\n'+known.join('')+'\n';
   p += '规则：一句话里最多只允许出现 1 个清单外的字，写一句查一句，能不用就不用。全文（含标题）清单外的字合起来不超过 '+plan.budget+' 个（同一个字用几次算一个）。超了不要删情节，换孩子认识的说法表达同样的意思。\n';
+  p += '例外：「'+[...FUN_CHARS].join('、')+'」这几个搞笑专用的字不算清单外的字，故事需要时可以放心用。\n';
   p += '小技巧：很多词有简单说法和稍微长一点的说法，意思差不多，但长的说法刚好多用了一两个清单里的字——这种情况优先选长一点的那种，既更自然、更像小朋友说话的语气，又能让孩子多见几次已经认识的字。比如"兔"单用比较少见，清单里有"子"的话就写"兔子"；一句感叹如果只写"……！"，清单里有"呀/啊/呢/吧"这类语气字的话，就写成"……呀！"，更有童趣。\n\n';
 
   if(weak.length){
@@ -764,7 +782,7 @@ function buildStoryPrompt(plan){
 
   p += '【格式与语气】\n';
   p += '不要写成词语罗列或机械重复的排比句（比如"A做了X，B也做了X"反复出现好几次）——偶尔用一两次可以，但不能是整篇故事的骨架。\n';
-  p += '温暖、好笑，适合 4–7 岁孩子，不要说教。只用简体中文，不要出现拼音、英文或生僻字。\n\n';
+  p += '好笑、有童趣，适合 4–7 岁孩子，不要说教。屎尿屁可以写，但要可爱不恶心：不描写细节，不嘲笑、不羞辱任何人。只用简体中文，不要出现拼音、英文或生僻字。\n\n';
 
   p += '【写完自查】\n';
   if(want) p += '- 要求：家长的特别要求是不是每一条都做到了？\n';
@@ -788,7 +806,7 @@ function buildSentencePrompt(plan){
 
   let p = '你是一位幼儿识字教材编写者，现在要给一个刚开始学认字的孩子写几句好玩的短句，让孩子自己读。孩子认识的字还很少，所以不需要写成故事，也不需要情节连贯。\n\n';
 
-  p += '【任务】只用孩子已经认识的字，写 5–'+sentCount+' 句简单、独立的短句。每句描述一件小事、一个动作或一个小场景，尽量好玩一点、有画面，让孩子读了想笑。不要写成"XX是XX"这种干巴巴的定义句，也不要写成"A做了X，B也做了X"这种反复排比。\n\n';
+  p += '【任务】只用孩子已经认识的字，写 5–'+sentCount+' 句简单、独立的短句。每句描述一件小事、一个动作或一个小场景，要好玩、有画面，让孩子读了想笑。这个孩子最喜欢放屁、臭脚丫、打嗝这类好笑的事（好笑但不下流），也喜欢"为什么"这样的小好奇，可以往这两个方向写。不要写成"XX是XX"这种干巴巴的定义句，也不要写成"A做了X，B也做了X"这种反复排比。\n\n';
 
   if(want) p += '【家长的特别要求】'+want+'（在不违反"只能用清单里的字"的前提下尽量满足；实在做不到的部分可以放弃）\n\n';
 
@@ -796,7 +814,8 @@ function buildSentencePrompt(plan){
 
   p += '【硬性要求：句子里一个清单外的字都不能有】\n';
   p += '每一句里的每一个字，都必须来自上面这份清单——哪怕只是常见字也不行。如果想写的句子里有清单外的字，换一种说法。\n';
-  p += '写完请自己逐字检查一遍，有清单外的字就换掉，宁可换个说法、换个场景、少写一句，也不要有一个生字。\n\n';
+  p += '写完请自己逐字检查一遍，有清单外的字就换掉，宁可换个说法、换个场景、少写一句，也不要有一个生字。\n';
+  p += '唯一的例外：「'+[...FUN_CHARS].join('、')+'」这几个搞笑专用的字可以用。\n\n';
 
   if(weak.length){
     p += '【孩子还不太熟、需要多练的字】：'+weak.join('')+'\n';
@@ -951,11 +970,12 @@ function makeReport(data){
       tags.appendChild(b);
     });
     rDetail.appendChild(lab); rDetail.appendChild(tags);
-    if(uniqNew.length > storyPlan().budget){
-      const fix = '这一版里有这些字孩子还没学过：'+uniqNew.join('、')+'。请重写一遍：情节保持不变，把这些字换成清单里的字或换一种说法，实在绕不开的最多留 3 个。输出格式和上次一样。';
+    const overNew = uniqNew.filter(c=> !FUN_CHARS.includes(c));   // 搞笑专用字不算
+    if(overNew.length > storyPlan().budget){
+      const fix = '这一版里有这些字孩子还没学过：'+overNew.join('、')+'。请重写一遍：情节保持不变，把这些字换成清单里的字或换一种说法，实在绕不开的最多留 3 个。输出格式和上次一样。';
       const box = document.createElement('div'); box.className = 'msg';
       box.style.cssText = 'display:block;background:#fff6e5;border:1px solid #f0c987;color:#8a5a10';
-      const t = document.createElement('span'); t.textContent = '生字有点多（'+uniqNew.length+' 个）。想让 AI 重写的话，点右边的按钮复制一句话，发给刚才那个 AI：';
+      const t = document.createElement('span'); t.textContent = '生字有点多（'+overNew.length+' 个）。想让 AI 重写的话，点右边的按钮复制一句话，发给刚才那个 AI：';
       const b = document.createElement('button'); b.className = 'ghost'; b.style.marginLeft = '8px'; b.textContent = '复制「请重写」';
       b.onclick = ()=>{ b.textContent = copyText(fix) ? '已复制 ✓' : '复制失败'; setTimeout(()=>{ b.textContent = '复制「请重写」'; }, 3000); };
       box.appendChild(t); box.appendChild(b); rDetail.appendChild(box);
