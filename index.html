@@ -197,6 +197,21 @@ rt.r{color:#c17d16}
 .wc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .wc-cell{position:relative;border:1px solid #dfe5f0;border-radius:12px;background:#fafbfd;display:flex;align-items:center;justify-content:center;padding:8px 2px 10px;line-height:1.2;min-width:0}
 .wc-cell.wc-single{border-style:dashed}
+.wc-cell.wc-must{border-color:#7cc28c;background:#eef8f0}
+.wc-mustmark{position:absolute;top:3px;left:5px;font-size:11px;color:#3d8a52}
+#wlSents{margin-top:6px}
+.wc-sents{border-top:1px dashed #d3dbea;padding-top:12px;margin-top:4px}
+.wc-sentshead{font-size:12px;color:#8a94a8;margin:0 0 8px}
+.wc-sent{display:flex;flex-wrap:wrap;align-items:flex-end;padding:6px 4px 8px;border-bottom:1px solid #eef1f6;line-height:1.2}
+.wc-sent .wc-ch{margin:0}
+.wc-sent .wc-hz{font-size:30px}
+.wc-sent .wc-ch.wc-fixable{cursor:pointer}
+.wc-sent .wc-ch.wc-fixable:hover .wc-py{text-decoration:underline}
+.wc-sent .wc-punct .wc-hz{color:#1f2a44}
+.wl-must{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.wl-must input{flex:1 1 140px;min-width:0}
+.wl-must #mwWord{flex:0 1 170px;font-size:18px}
+#snText{min-height:110px;font-size:17px;line-height:1.7}
 .wc-word{display:flex;align-items:flex-end;justify-content:center;white-space:nowrap}
 .wc-ch{display:inline-flex;flex-direction:column;align-items:center;margin:0 1px}
 .wc-py{font-size:13px;line-height:18px;height:18px;color:#3f6cb3;white-space:nowrap}
@@ -242,6 +257,14 @@ rt.r{color:#c17d16}
   .wc-page:last-child{break-after:auto;page-break-after:auto}
   .wc-pagehead{font-size:9pt;color:#8a94a8;height:6mm;line-height:5mm;margin:0}
   .wc-pagehead .wc-ptitle{display:inline}
+  .wc-page.wc-last{break-after:auto;page-break-after:auto}
+  .wc-cell.wc-must{border-color:#d3dbea;background:#fafbfd}
+  .wc-mustmark{display:none}
+  #wlSents{margin-top:3mm}
+  .wc-sents{border-top:1px dashed #c9d2e3;padding-top:2mm;margin:0}
+  .wc-sentshead{font-size:9pt;margin:0 0 1mm}
+  .wc-sent{padding:1mm 1mm 2mm;border-bottom:1px solid #e3e8f0;break-inside:avoid;page-break-inside:avoid}
+  .wc-sent .wc-hz{font-size:23pt}
   .wc-grid{grid-template-columns:repeat(5,1fr);gap:2mm}
   .wc-cell{height:17mm;padding:0 1mm;border:1px solid #d3dbea;border-radius:3.5mm;background:#fafbfd;break-inside:avoid;page-break-inside:avoid}
   .wc-py{font-size:9pt;height:3.8mm;line-height:3.8mm;color:#3f6cb3}
@@ -268,7 +291,7 @@ rt.r{color:#c17d16}
   </label>
   <nav>
     <button data-p="lib" class="on">字库</button>
-    <button data-p="word">词语卡</button>
+    <button data-p="word">词语句子</button>
     <button data-p="gen">做绘本</button>
     <button data-p="my">我的绘本</button>
   </nav>
@@ -337,7 +360,7 @@ rt.r{color:#c17d16}
 
 <section id="word" class="page">
   <div class="card no-print">
-    <h2 id="wlTitle">词语朗读清单</h2>
+    <h2 id="wlTitle">词语句子朗读清单</h2>
     <p class="hint">把孩子「已经会的」和「需要巩固」的字全部组成词，<b>每个字至少出现一次</b>。<b>需要巩固的字上面有拼音</b>，已经会的字没有拼音。清单生成以后不会自己变，可以反复读到顺为止；学了新字，再点按钮更新。</p>
     <div class="bar">
       <button class="act" id="wlRegenBtn">🔄 重新生成</button>
@@ -348,12 +371,33 @@ rt.r{color:#c17d16}
     <p class="hint" style="margin-top:10px">觉得哪个词奇怪？电脑上把鼠标移到词上，手机上<b>长按</b>这个词，右上角会出现 <b>×</b>，点它就能从词库删掉，会自动换一个词把这几个字补上。</p>
     <div class="wc-undo" id="wcUndo" hidden></div>
   </div>
+  <div class="card no-print" id="mwCard">
+    <h2 id="mwTitle">必读词语</h2>
+    <p class="hint">这里的词<b>每次都会排在清单最前面</b>（绿色框），点「重新生成」也不会去掉，直到你自己删除。词里的字和别的词重复没关系，清单仍然会覆盖所有学过的字。没学过的字也会标拼音。</p>
+    <div class="wl-must">
+      <input type="text" id="mwWord" placeholder="例如：生日快乐" maxlength="5" autocomplete="off">
+      <input type="text" id="mwPy" placeholder="拼音（自动生成，可修改）" autocomplete="off">
+      <button class="act" id="mwAddBtn">＋ 加入必读</button>
+    </div>
+    <p class="hint" id="mwMsg" style="margin-top:8px"></p>
+    <div id="mwList"></div>
+  </div>
+  <div class="card no-print" id="snCard">
+    <h2 id="snTitle">句子（可以不填）</h2>
+    <p class="hint">每行写一句。会打印在词语后面；<b>已经会的字不标拼音，需要巩固和还没学过的字标拼音</b>。句子一直保留，直到你修改或清空。<br>多音字偶尔会标错，在下面清单里<b>点那个字</b>就能改读音。</p>
+    <textarea id="snText" placeholder="例如：&#10;乐乐和妈妈一起去公园。&#10;小狗跑得好快呀！"></textarea>
+    <div class="bar" style="margin-top:8px">
+      <button class="act blue" id="snSaveBtn">保存句子</button>
+      <span class="hint" id="snMsg"></span>
+    </div>
+  </div>
   <div class="wc-panel" id="wcCard">
     <div id="wlPages"></div>
+    <div id="wlSents"></div>
   </div>
   <div class="card no-print" id="wbCard">
     <h2>我的词库</h2>
-    <p class="hint">输入一个词（2–4 个字），可以<b>添加</b>常用词，也可以<b>删除</b>不想要的词。<b>所有小朋友共用这一份词库。</b>改动只保存在这台设备的浏览器里；换设备时用字库页的「导出全部备份 / 导入备份」，会一起带过去。</p>
+    <p class="hint">输入一个词（2–4 个字），可以<b>添加</b>常用词，也可以<b>删除</b>不想要的词。<b>所有小朋友共用这一份词库。</b>添加和删除<b>马上生效</b>：下次生成或补新字时就会用到或避开。<br>这些改动只保存在这台设备的浏览器里。想让它们<b>永久进入网站自带的词库</b>（换设备、换浏览器也有）：隔一段时间到字库页点「导出全部备份」，把文件发给帮你维护网站的 AI，请它把「我的词库」的增删合并进内置词库再上线。</p>
     <div class="wb-row">
       <input type="text" id="wbWord" placeholder="例如：闹心" maxlength="4" autocomplete="off">
       <input type="text" id="wbPy" placeholder="拼音（自动生成，可修改）" autocomplete="off">
@@ -466,7 +510,7 @@ let prefs = {};     // 以前版本记住的设置（现在不用了，留着是
    每个小朋友有自己的：字库进度、词语清单、保存的绘本。「我的词库」所有小朋友共用。
    第一个小朋友（id 是 default）直接用改版前的存储位置，所以以前的记录原样保留。 */
 const KIDS_LS = 'kids_v1';
-const KID_KEYS = ['ztgf_v2', 'wordlist_v2', 'ztgf_stories_v1'];   // 每个小朋友各存一份的三样东西
+const KID_KEYS = ['ztgf_v2', 'wordlist_v2', 'ztgf_stories_v1', 'wordextra_v1'];   // 每个小朋友各存一份：字库、清单、绘本、必读词语和句子
 let kids = (function(){
   try{ const d = JSON.parse(localStorage.getItem(KIDS_LS)||'null');
     if(d && Array.isArray(d.list) && d.list.length){
@@ -639,7 +683,8 @@ expBtn.onclick = ()=>{
       const p = kidRead(k.id, 'ztgf_v2', null) || {};
       return { id:k.id, name:k.name, st:p.st||{}, prefs:p.prefs||{},
                wordlist: kidRead(k.id, 'wordlist_v2', null) || undefined,
-               stories: kidRead(k.id, 'ztgf_stories_v1', []) };
+               stories: kidRead(k.id, 'ztgf_stories_v1', []),
+               extra: kidRead(k.id, 'wordextra_v1', null) || undefined };
     }) };
   const blob = new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
   const a = document.createElement('a');
@@ -673,6 +718,7 @@ imp.onchange = e=>{
         localStorage.setItem(kidKeyFor(id,'ztgf_v2'), JSON.stringify({st:k.st, prefs:k.prefs||{}, t:Date.now()}));
         if(k.wordlist && Array.isArray(k.wordlist.items) && Array.isArray(k.wordlist.singles)) localStorage.setItem(kidKeyFor(id,'wordlist_v2'), JSON.stringify(k.wordlist));
         if(Array.isArray(k.stories)) localStorage.setItem(kidKeyFor(id,'ztgf_stories_v1'), JSON.stringify(k.stories));
+        if(k.extra && typeof k.extra==='object') localStorage.setItem(kidKeyFor(id,'wordextra_v1'), JSON.stringify(k.extra));
       });
       const curIdx = d.kids.findIndex(k=> k.id===d.cur);
       kids = { list, cur: list[curIdx>=0 ? curIdx : 0].id }; kidsSave();
@@ -1141,6 +1187,16 @@ function wlLoad(){
   return null;
 }
 function wlSave(d){ localStorage.setItem(K(WL_LS), JSON.stringify(d)); }
+/* 必读词语和句子：每个小朋友一份，点「重新生成」也不会清掉
+   { must:[{w,p}], sents:[{t, fix:{位置:拼音}}] } */
+const WX_LS = 'wordextra_v1';
+function wxLoad(){
+  try{ const d = JSON.parse(localStorage.getItem(K(WX_LS))||'null');
+    if(d && typeof d==='object') return { must: Array.isArray(d.must)? d.must : [], sents: Array.isArray(d.sents)? d.sents : [] }; }catch(e){}
+  return { must:[], sents:[] };
+}
+function wxSave(d){ localStorage.setItem(K(WX_LS), JSON.stringify(d)); }
+function wlMustChars(){ const s = new Set(); wxLoad().must.forEach(b=>{ for(const c of b.w) s.add(c); }); return s; }
 function wlToday(){
   const d = new Date(), z = n=> String(n).padStart(2,'0');
   return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());
@@ -1225,7 +1281,8 @@ function wlPrune(items){
   return keep.reverse();
 }
 function wlCoveredSet(data){
-  const s = new Set(data.singles);
+  const s = wlMustChars();
+  data.singles.forEach(c=> s.add(c));
   data.items.forEach(b=>{ for(const c of b.w) s.add(c); });
   return s;
 }
@@ -1233,7 +1290,8 @@ function wlCoveredSet(data){
 function wlMissing(data){ const s = wlCoveredSet(data); return wlKnown().filter(c=> !s.has(c)); }
 
 function wlGenerate(){
-  const {picked, left} = wlCover(wlKnown());
+  const mc = wlMustChars();
+  const {picked, left} = wlCover(wlKnown().filter(c=> !mc.has(c)), wxLoad().must.map(b=> b.w));
   wlSave({ created: wlToday(), items: wcShuffle(wlPrune(picked)), singles: left });
   const ub = $('wcUndo'); if(ub) ub.hidden = true; wcLastUndo = null;
   wlRender();
@@ -1242,7 +1300,7 @@ function wlGenerate(){
 function wlAppendNew(){
   const data = wlLoad(); if(!data){ wlGenerate(); return; }
   const need = wlMissing(data).concat(data.singles.filter(c=> st[c]>0));
-  const {picked, left} = wlCover(need, data.items.map(b=> b.w));
+  const {picked, left} = wlCover(need, data.items.map(b=> b.w).concat(wxLoad().must.map(b=> b.w)));
   data.items = data.items.concat(picked);
   data.singles = left;
   data.updated = wlToday();
@@ -1263,9 +1321,10 @@ function wlMakeCh(hzText, pyText, weak){
   col.appendChild(py); col.appendChild(hz);
   return col;
 }
-function wlMakeCell(b, isSingle){
+function wlMakeCell(b, isSingle, isMust){
   const cell = document.createElement('div');
-  cell.className = 'wc-cell' + (isSingle ? ' wc-single' : '');
+  cell.className = 'wc-cell' + (isSingle ? ' wc-single' : '') + (isMust ? ' wc-must' : '');
+  if(isMust){ const mk = document.createElement('span'); mk.className = 'wc-mustmark'; mk.textContent = '必读'; cell.appendChild(mk); }
   const cs = [...b.w], sy = wlSyl(b);
   const word = document.createElement('div');
   word.className = 'wc-word' + (cs.length>=4 ? ' wc-long' : '');
@@ -1279,10 +1338,10 @@ function wlMakeCell(b, isSingle){
   if(!isSingle){
     const del = document.createElement('button');
     del.className = 'wc-del no-print';
-    del.title = '从词库删除「'+b.w+'」';
+    del.title = isMust ? ('从必读词语里去掉「'+b.w+'」') : ('从词库删除「'+b.w+'」');
     del.setAttribute('aria-label', del.title);
     del.textContent = '×';
-    del.onclick = ()=> wcDeleteWord(b.w);
+    del.onclick = ()=> isMust ? mwRemove(b.w) : wcDeleteWord(b.w);
     cell.appendChild(del);
   }
   return cell;
@@ -1291,9 +1350,10 @@ function wlMakeCell(b, isSingle){
 function wlRender(){
   const data = wlLoad();
   if(!data){ wlGenerate(); return; }
-  $('wlTitle').textContent = '「'+kidName()+'」的词语朗读清单';
+  $('wlTitle').textContent = '「'+kidName()+'」的词语句子朗读清单';
+  const wx = wxLoad();
   const per = WL_PER_PAGE;
-  const cells = data.items.map(b=> ({b, single:false}))
+  const cells = wx.must.map(b=> ({b, single:false, must:true})).concat(data.items.map(b=> ({b, single:false})))
     .concat(data.singles.map(c=> ({b:{w:c, p:PY[c]||''}, single:true})));
   const box = $('wlPages'); box.innerHTML = '';
   const pages = Math.max(1, Math.ceil(cells.length / per));
@@ -1306,30 +1366,35 @@ function wlRender(){
     const page = document.createElement('div'); page.className = 'wc-page';
     const head = document.createElement('div'); head.className = 'wc-pagehead';
     const t1 = document.createElement('span');
-    const tt = document.createElement('span'); tt.className = 'wc-ptitle'; tt.textContent = kidName()+' 的词语朗读清单 · 有拼音的是要多练的字　';
+    const tt = document.createElement('span'); tt.className = 'wc-ptitle'; tt.textContent = kidName()+' 的词语句子朗读清单 · 有拼音的是要多练的字　';
     t1.appendChild(tt);
     const t2 = document.createElement('span'); t2.textContent = '第 '+(pi+1)+' / '+pages+' 页';
     head.appendChild(t1); head.appendChild(t2);
     const grid = document.createElement('div'); grid.className = 'wc-grid';
-    cells.slice(pi*per, (pi+1)*per).forEach(x=> grid.appendChild(wlMakeCell(x.b, x.single)));
+    cells.slice(pi*per, (pi+1)*per).forEach(x=> grid.appendChild(wlMakeCell(x.b, x.single, x.must)));
     page.appendChild(head); page.appendChild(grid);
+    if(pi===pages-1) page.classList.add('wc-last');
     box.appendChild(page);
   }
+  snRender(wx);
+  mwRenderList(wx);
 
   /* 说明文字 */
   const known = wlKnown(), covered = wlCoveredSet(data);
   const hit = known.filter(c=> covered.has(c)).length;
   const weakN = known.filter(c=> st[c]===2).length;
-  let meta = '共 '+data.items.length+' 个词';
+  let meta = (wx.must.length ? wx.must.length+' 个必读词 + ' : '')+'共 '+data.items.length+' 个词';
   if(data.singles.length) meta += ' + '+data.singles.length+' 个单字';
   meta += ' · 覆盖 '+hit+' / '+known.length+' 个学过的字（其中 '+weakN+' 个需要巩固，带拼音）';
-  meta += ' · 打印约 '+pages+' 页 A4 · '+data.created+' 生成'+(data.updated ? '，'+data.updated+' 补过新字' : '');
+  if(wx.sents.length) meta += ' · '+wx.sents.length+' 句句子';
+  meta += ' · 词语打印约 '+pages+' 页 A4'+(wx.sents.length ? '（句子接在后面）' : '')+' · '+data.created+' 生成'+(data.updated ? '，'+data.updated+' 补过新字' : '');
   if(data.singles.length) meta += '。「'+data.singles.join('、')+'」暂时组不了词（能和它搭配的字还没学），单独排在最后';
   $('wcMeta').textContent = meta;
 
   /* 字库变了的提醒：清单不会自己变，由家长决定要不要更新 */
   const miss = known.filter(c=> !covered.has(c));
-  const gone = [...covered].filter(c=> !(st[c]>0));
+  const listChars = new Set(data.singles); data.items.forEach(b=>{ for(const c of b.w) listChars.add(c); });
+  const gone = [...listChars].filter(c=> !(st[c]>0));   // 必读词语里没学过的字是故意的，不提醒
   const nb = $('wlNotice'); nb.innerHTML = '';
   if(miss.length || gone.length){
     let msg = '';
@@ -1494,14 +1559,155 @@ wbRenderLists();
   }, {passive:true});
 })();
 
+/* ---------- 必读词语 ---------- */
+const mwWord = $('mwWord'), mwPy = $('mwPy'), mwMsg = $('mwMsg');
+let mwPyTouched = false;
+function mwClean(){ return (mwWord.value||'').replace(/[\s，,。.、！!？?]/g,''); }
+/* 拼音：词库里有就用词库的（多音字是对的），没有就逐字自动生成 */
+function mwAutoPy(w){
+  const b = wcBank().find(x=> x.w===w);
+  return b ? b.p : wbAutoPy(w);
+}
+mwWord.oninput = ()=>{ const w = mwClean(); if(!mwPyTouched) mwPy.value = w ? mwAutoPy(w) : ''; mwMsg.textContent = ''; };
+mwPy.oninput = ()=>{ mwPyTouched = !!mwPy.value; };
+mwWord.onkeydown = e=>{ if(e.key==='Enter') $('mwAddBtn').click(); };
+$('mwAddBtn').onclick = ()=>{
+  const w = mwClean();
+  if(!/^[㐀-鿿]{1,5}$/.test(w)){ mwMsg.textContent = '请输入 1–5 个汉字。'; return; }
+  const p = (mwPy.value||'').trim().replace(/\s+/g,' ') || mwAutoPy(w);
+  if(p.split(' ').length !== [...w].length && !confirm('拼音的个数（'+p.split(' ').length+'）和字数（'+[...w].length+'）对不上，拼音会整个显示在词上面。要继续加吗？')) return;
+  const wx = wxLoad();
+  if(wx.must.some(b=> b.w===w)){ mwMsg.textContent = '「'+w+'」已经在必读词语里了。'; return; }
+  wx.must.push({w, p}); wxSave(wx);
+  const notLearned = [...w].filter(c=> !(st[c]>0));
+  mwMsg.textContent = '已加入必读：「'+w+'」（'+p+'）'+(notLearned.length ? '。其中「'+notLearned.join('')+'」还没学，会标拼音。' : '。');
+  mwWord.value = ''; mwPy.value = ''; mwPyTouched = false;
+  wlRender();
+};
+function mwRemove(w){
+  const wx = wxLoad();
+  wx.must = wx.must.filter(b=> b.w!==w); wxSave(wx);
+  /* 这个词带的字如果清单别处没有了，就找别的词补到最后 */
+  const data = wlLoad();
+  if(data){
+    const covered = wlCoveredSet(data);
+    const lost = [...new Set(w)].filter(c=> st[c]>0 && !covered.has(c));
+    if(lost.length){
+      const {picked, left} = wlCover(lost, data.items.map(b=> b.w).concat(wx.must.map(b=> b.w)));
+      data.items = data.items.concat(picked);
+      data.singles = data.singles.concat(left.filter(c=> !data.singles.includes(c)));
+      wlSave(data);
+      mwMsg.textContent = '已去掉「'+w+'」'+(picked.length ? '，补上了「'+picked.map(b=> b.w).join('、')+'」' : '')+'。';
+    } else mwMsg.textContent = '已去掉「'+w+'」。';
+  }
+  wlRender();
+}
+function mwRenderList(wx){
+  $('mwTitle').textContent = '「'+kidName()+'」的必读词语'+(wx.must.length ? '（'+wx.must.length+'）' : '');
+  const box = $('mwList'); box.innerHTML = '';
+  if(!wx.must.length){ const p = document.createElement('p'); p.className = 'hint'; p.style.margin = '8px 0 0'; p.textContent = '还没有必读词语。'; box.appendChild(p); return; }
+  const g = document.createElement('div'); g.className = 'wb-group';
+  wx.must.forEach(b=>{
+    const c = document.createElement('span'); c.className = 'wb-chip';
+    c.appendChild(document.createTextNode(b.w));
+    const sm = document.createElement('small'); sm.textContent = b.p; c.appendChild(sm);
+    const btn = document.createElement('button'); btn.textContent = '去掉'; btn.onclick = ()=> mwRemove(b.w);
+    c.appendChild(btn); g.appendChild(c);
+  });
+  box.appendChild(g);
+}
+
+/* ---------- 句子 ---------- */
+/* 按词标音：先用词库里的词（4 字→2 字，从左往右最长匹配）定读音，匹配不上的字用默认读音。
+   这样「长大」「睡觉」「好看」这类多音字大多能标对。 */
+let SN_DICT = null;
+function snDict(){
+  if(SN_DICT) return SN_DICT;
+  SN_DICT = {};
+  const add = b=>{ const sy = (b.p||'').trim().split(/\s+/); if(sy.length===[...b.w].length) SN_DICT[b.w] = sy; };
+  WORDBANK.forEach(add);
+  (wbCustom.added||[]).forEach(add);
+  wxLoad().must.forEach(add);
+  return SN_DICT;
+}
+/* 没组成词、单独出现时，这几个字几乎都是轻声助词（跑得快、看着、吃了） */
+const SN_SOLO = { '得':'de', '着':'zhe', '了':'le', '的':'de', '么':'me', '们':'men' };
+function snPinyin(t){
+  const cs = [...t], out = new Array(cs.length).fill('');
+  const d = snDict();
+  let i = 0;
+  while(i < cs.length){
+    if(!/[㐀-鿿]/.test(cs[i])){ i++; continue; }
+    let hit = 0;
+    for(let L=4; L>=2; L--){
+      if(i+L > cs.length) continue;
+      const w = cs.slice(i, i+L).join('');
+      if(d[w]){ d[w].forEach((p,k)=> out[i+k] = p); hit = L; break; }
+    }
+    if(hit){ i += hit; continue; }
+    let p = SN_SOLO[cs[i]] || PY[cs[i]] || '';
+    if(cs[i]==='地' && i>=2 && cs[i-1]===cs[i-2]) p = 'de';   // 慢慢地、轻轻地、高高兴兴地
+    if(cs[i]==='不' || cs[i]==='一'){ p = wbAutoPy(cs[i] + (cs[i+1]||'')).split(' ')[0] || p; }   // 一、不 变调
+    out[i] = p; i++;
+  }
+  return out;
+}
+function snParse(text){
+  return String(text||'').split('\n').map(x=> x.replace(/\s+/g,' ').trim()).filter(Boolean).slice(0, 40);
+}
+function snLoadToBox(){ $('snText').value = wxLoad().sents.map(x=> x.t).join('\n'); }
+$('snSaveBtn').onclick = ()=>{
+  const wx = wxLoad();
+  const old = {}; wx.sents.forEach(x=>{ old[x.t] = x.fix || {}; });   // 没改过的句子，改过的读音留着
+  wx.sents = snParse($('snText').value).map(t=> ({ t, fix: old[t] || {} }));
+  wxSave(wx);
+  $('snMsg').textContent = wx.sents.length ? '已保存 '+wx.sents.length+' 句 ✓' : '已清空句子';
+  setTimeout(()=>{ $('snMsg').textContent = ''; }, 4000);
+  wlRender();
+};
+function snFix(si, pos, cur, ch){
+  const v = prompt('「'+ch+'」在这句里读什么？（输入带声调的拼音，比如 de、zhǎng；留空恢复自动读音）', cur);
+  if(v===null) return;
+  const wx = wxLoad(); if(!wx.sents[si]) return;
+  wx.sents[si].fix = wx.sents[si].fix || {};
+  const p = v.trim();
+  if(p) wx.sents[si].fix[pos] = p; else delete wx.sents[si].fix[pos];
+  wxSave(wx); wlRender();
+}
+function snRender(wx){
+  $('snTitle').textContent = '「'+kidName()+'」的句子（可以不填）';
+  if(document.activeElement !== $('snText')) snLoadToBox();
+  const box = $('wlSents'); box.innerHTML = '';
+  if(!wx.sents.length) return;
+  SN_DICT = null;
+  const wrap = document.createElement('div'); wrap.className = 'wc-sents';
+  const h = document.createElement('div'); h.className = 'wc-sentshead'; h.textContent = '读句子';
+  wrap.appendChild(h);
+  wx.sents.forEach((x, si)=>{
+    const cs = [...x.t], py = snPinyin(x.t), fix = x.fix || {};
+    const line = document.createElement('div'); line.className = 'wc-sent';
+    cs.forEach((c, k)=>{
+      const isHz = /[㐀-鿿]/.test(c);
+      const need = isHz && st[c] !== 1;
+      const p = need ? (fix[k] || py[k] || '') : '';
+      const col = wlMakeCh(c, p, need);
+      if(!isHz) col.classList.add('wc-punct');
+      if(need){ col.classList.add('wc-fixable'); col.title = '点一下改读音'; col.onclick = ()=> snFix(si, k, p, c); }
+      line.appendChild(col);
+    });
+    wrap.appendChild(line);
+  });
+  box.appendChild(wrap);
+}
+
 /* ---------- 按钮 ---------- */
 $('wlRegenBtn').onclick = ()=>{
   const data = wlLoad();
-  if(data && data.items.length && !confirm('重新生成会换掉现在这份清单（词和顺序都会变）。确定吗？')) return;
+  if(data && data.items.length && !confirm('重新生成会换掉现在这份清单（词和顺序都会变）。必读词语和句子会保留。确定吗？')) return;
   wlGenerate();
 };
 $('wlPrintBtn').onclick = ()=> window.print();
-/* 每次切到「词语卡」页都按最新的字库重画一遍（拼音、提醒会跟着字库更新，词本身不变） */
+/* 每次切到「词语句子」页都按最新的字库重画一遍（拼音、提醒会跟着字库更新，词本身不变） */
 const wlNavBtn = document.querySelector('nav button[data-p="word"]');
 if(wlNavBtn) wlNavBtn.addEventListener('click', ()=> wlRender());
 
