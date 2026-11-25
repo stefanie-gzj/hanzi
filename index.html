@@ -435,12 +435,13 @@ rt.r{color:#c17d16}
       <pre id="sgPeek" style="display:none;white-space:pre-wrap;background:#f7f4ef;border:1px solid var(--line);border-radius:9px;padding:12px;font-size:12px;line-height:1.6;max-height:240px;overflow:auto;margin-top:10px;font-family:inherit"></pre>
       <div class="gstep">
         <p class="gt"><span class="step">2</span>发给你的 AI，把它写的句子贴回来</p>
-        <p class="hint">贴进下面的框，点「加到句子里」。会接在上面已有的句子后面，编号、空行会自动去掉。</p>
+        <p class="hint">贴进下面的框，点「加到句子里」。新句子接在已有句子后面；<b>如果是 AI 改写过的句子（比如「请换掉没学的字」之后），会自动替换掉原来那一句</b>，不会重复。编号、空行会自动去掉。</p>
       </div>
       <textarea id="sgPaste" placeholder="在这里粘贴 AI 写好的句子…"></textarea>
       <div class="bar" style="margin-top:8px">
         <button class="act blue" id="sgAddBtn">加到句子里</button>
         <span class="hint" id="sgAddMsg"></span>
+        <button class="ghost" id="sgUndoBtn" hidden>↩ 撤销这次</button>
       </div>
     </div>
   </div>
@@ -1815,26 +1816,61 @@ function sgClean(text){
     .replace(/^[-*•·]\s*/,'')
     .replace(/^第?\s*[0-9０-９一二三四五六七八九十]+\s*[句个]?\s*[.、．:：)）]\s*/,'')
     .replace(/^[（(]\s*[0-9０-９]+\s*[)）]\s*/,'')
-    .replace(/^["“「『]+|["”」』]+$/g,'')
+    .replace(/^(["“「『])([^"“”「」『』]*)(["”」』])$/,'$2')
     .trim()
   ).filter(l=> /[㐀-鿿]/.test(l));
 }
+/* 两句话有多像：共同的汉字（按次数算）占较长一句汉字数的比例。
+   用你的真实句子测过：AI 改写的句子和原句在 0.64–0.91，不相干的句子最多 0.5，所以 0.6 以上算「改写」。 */
+function sgSim(a, b){
+  const hz = c=> /[\u3400-\u9fff]/.test(c);
+  const A = [...a].filter(hz), B = [...b].filter(hz);
+  if(!A.length || !B.length) return 0;
+  const cnt = {}; A.forEach(c=>{ cnt[c] = (cnt[c]||0)+1; });
+  let com = 0; B.forEach(c=>{ if(cnt[c] > 0){ com++; cnt[c]--; } });
+  return com / Math.max(A.length, B.length);
+}
+const SG_SIM = 0.6;
+let sgUndoSnap = null;
 $('sgAddBtn').onclick = ()=>{
   const lines = sgClean($('sgPaste').value);
   if(!lines.length){ $('sgAddMsg').textContent = '框里没有句子，先把 AI 写的句子贴进来。'; return; }
   const wx = wxLoad(); const have = new Set(wx.sents.map(x=> x.t));
-  let added = 0, dup = 0, full = 0;
+  sgUndoSnap = JSON.parse(JSON.stringify(wx.sents));
+  const replacedIdx = new Set();
+  let added = 0, dup = 0, full = 0, replaced = 0;
   lines.forEach(t=>{
     t = t.replace(/\s+/g,' ');
     if(have.has(t)){ dup++; return; }
+    /* 是不是在改写已有的某一句？找最像的一句（每句原句只替换一次） */
+    let bi = -1, bs = 0;
+    wx.sents.forEach((x, i)=>{ if(replacedIdx.has(i)) return; const v = sgSim(t, x.t); if(v > bs){ bs = v; bi = i; } });
+    if(bi >= 0 && bs >= SG_SIM){
+      have.delete(wx.sents[bi].t);
+      wx.sents[bi] = { t, fix:{} };   // 位置不变，改过的读音清掉（句子变了）
+      replacedIdx.add(bi); have.add(t); replaced++;
+      return;
+    }
     if(wx.sents.length >= SN_MAX){ full++; return; }
     wx.sents.push({ t, fix:{} }); have.add(t); added++;
   });
   wxSave(wx);
   $('sgPaste').value = '';
-  $('sgAddMsg').textContent = '加了 '+added+' 句'+(dup ? '，'+dup+' 句已经有了就跳过' : '')+(full ? '，超过 '+SN_MAX+' 句的 '+full+' 句没加' : '')+'。';
+  const parts = [];
+  if(replaced) parts.push('替换了 '+replaced+' 句（AI 改写过的句子换掉了原来那句）');
+  if(added) parts.push('新加了 '+added+' 句');
+  if(dup) parts.push(dup+' 句已经有了就跳过');
+  if(full) parts.push('超过 '+SN_MAX+' 句的 '+full+' 句没加');
+  $('sgAddMsg').textContent = (parts.join('，') || '没有变化')+'。';
+  $('sgUndoBtn').hidden = !(replaced || added);
   snLoadToBox(); wlRender();
   const cov = $('sgCov'); if(cov && cov.scrollIntoView) cov.scrollIntoView({behavior:'smooth', block:'center'});
+};
+$('sgUndoBtn').onclick = ()=>{
+  if(!sgUndoSnap) return;
+  const wx = wxLoad(); wx.sents = sgUndoSnap; wxSave(wx); sgUndoSnap = null;
+  $('sgUndoBtn').hidden = true; $('sgAddMsg').textContent = '已撤销，句子回到这次添加之前。';
+  snLoadToBox(); wlRender();
 };
 $('snClearBtn').onclick = ()=>{
   const wx = wxLoad(); if(!wx.sents.length) return;
@@ -1874,7 +1910,11 @@ function sgRenderCov(wx){
     const b2 = document.createElement('button'); b2.className = 'ghost'; b2.textContent = '复制「请换掉没学的字」';
     b2.onclick = ()=>{
       const bad = wx.sents.filter(x=> [...x.t].some(c=> extra.includes(c))).map(x=> x.t);
-      const fix = '这些句子里有孩子还没学的字（'+extra.join('、')+'）：\n'+bad.join('\n')+'\n请把这几句改写，换成孩子认识的字，意思尽量不变。只输出改好的句子，一行一句，不要编号。';
+      let fix = '下面这 '+bad.length+' 句里有孩子还没学的字（'+extra.join('、')+'）：\n';
+      bad.forEach((t,i)=>{ fix += (i+1)+'. '+t+'\n'; });
+      fix += '\n请把这 '+bad.length+' 句全部改写，一句都不要漏：把这些字换掉，意思尽量不变，还是要好玩。改写时只能用孩子认识的字：\n'+wlKnown().join('')+'\n';
+      fix += '（「'+[...FUN_CHARS].join('、')+'」这几个搞笑字也可以用。）\n';
+      fix += '按原来的顺序输出 '+bad.length+' 行，一行一句，不要编号，不要解释。';
       if(copyText(fix)){ b2.textContent = '已复制 ✓'; } else { sgShowPeek(fix); b2.textContent = '已在上面选中'; }
       setTimeout(()=>{ b2.textContent = '复制「请换掉没学的字」'; }, 3000);
     };
